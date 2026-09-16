@@ -5,6 +5,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/generated/translations.g.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
+import 'package:immich_mobile/services/video_hold_playback.dart';
 import 'package:immich_ui/immich_ui.dart';
 
 class VideoViewerSettings extends HookConsumerWidget {
@@ -40,6 +41,19 @@ class VideoViewerSettings extends HookConsumerWidget {
           valueNotifier: useLoopVideo,
           title: context.t.setting_video_viewer_looping_title,
           subtitle: context.t.loop_videos_description,
+        ),
+        ListTile(
+          title: Text(context.t.setting_video_hold_speed_title),
+          subtitle: Text(context.t.setting_video_hold_speed_subtitle),
+        ),
+        SettingsRadioListTile<int>(
+          groups: VideoHoldPlayback.speeds.map((speed) => SettingsRadioGroup(title: '×$speed', value: speed)).toList(),
+          groupBy: viewer.holdSpeed,
+          onRadioChanged: (speed) {
+            if (speed != null) {
+              unawaited(ref.read(settingsProvider).write(.viewerHoldSpeed, speed));
+            }
+          },
         ),
         SettingsSwitchListTile(
           valueNotifier: useOriginalVideo,

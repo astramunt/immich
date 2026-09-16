@@ -15,6 +15,7 @@ import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_details.wi
 import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_stack.provider.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_stack.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/ocr_overlay.widget.dart';
+import 'package:immich_mobile/presentation/widgets/asset_viewer/video_hold_gesture.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/video_viewer.widget.dart';
 import 'package:immich_mobile/presentation/widgets/images/image_provider.dart';
 import 'package:immich_mobile/presentation/widgets/images/progressive_image.widget.dart';
@@ -375,32 +376,36 @@ class _AssetPageState extends ConsumerState<AssetPage> {
       );
     }
 
-    return PhotoView.customChild(
-      key: Key(asset.heroTag),
-      childSize: asset.width != null && asset.height != null
-          ? Size(asset.width!.toDouble(), asset.height!.toDouble())
-          : null,
-      onDragStart: _onDragStart,
-      onDragUpdate: _onDragUpdate,
-      onDragEnd: _onDragEnd,
-      onDragCancel: _onDragCancel,
-      onTapUp: _onTapUp,
-      scaleStateChangedCallback: _onScaleStateChanged,
-      heroAttributes: heroAttributes,
-      filterQuality: FilterQuality.high,
-      basePosition: Alignment.center,
-      disableScaleGestures: _showingDetails,
-      minScale: PhotoViewComputedScale.contained,
-      initialScale: PhotoViewComputedScale.contained,
-      tightMode: true,
-      onPageBuild: _onPageBuild,
-      enablePanAlways: true,
-      child: NativeVideoViewer(
-        key: _NativeVideoViewerKey(asset.heroTag),
-        asset: asset,
-        localFilePath: localFilePath,
-        isCurrent: isCurrent,
-        image: Image(image: imageProvider, fit: BoxFit.contain, alignment: Alignment.center),
+    return VideoHoldGesture(
+      assetId: asset.id,
+      enabled: isCurrent && !asset.isMotionPhoto,
+      child: PhotoView.customChild(
+        key: Key(asset.heroTag),
+        childSize: asset.width != null && asset.height != null
+            ? Size(asset.width!.toDouble(), asset.height!.toDouble())
+            : null,
+        onDragStart: _onDragStart,
+        onDragUpdate: _onDragUpdate,
+        onDragEnd: _onDragEnd,
+        onDragCancel: _onDragCancel,
+        onTapUp: _onTapUp,
+        scaleStateChangedCallback: _onScaleStateChanged,
+        heroAttributes: heroAttributes,
+        filterQuality: FilterQuality.high,
+        basePosition: Alignment.center,
+        disableScaleGestures: _showingDetails,
+        minScale: PhotoViewComputedScale.contained,
+        initialScale: PhotoViewComputedScale.contained,
+        tightMode: true,
+        onPageBuild: _onPageBuild,
+        enablePanAlways: true,
+        child: NativeVideoViewer(
+          key: _NativeVideoViewerKey(asset.heroTag),
+          asset: asset,
+          localFilePath: localFilePath,
+          isCurrent: isCurrent,
+          image: Image(image: imageProvider, fit: BoxFit.contain, alignment: Alignment.center),
+        ),
       ),
     );
   }
