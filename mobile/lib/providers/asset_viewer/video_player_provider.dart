@@ -71,17 +71,17 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
     );
   }
 
-  Future<void> startHoldPlayback({required bool reverse, required int speed}) async {
+  Future<void> startHoldPlayback({required int speed}) async {
     if (state.duration == Duration.zero ||
         state.status != VideoPlaybackStatus.playing ||
         (_seekTimer?.isActive ?? false)) {
       return;
     }
-    await _holdPlayback?.start(reverse: reverse, speed: speed);
+    await _holdPlayback?.start(speed: speed);
   }
 
-  Future<void> stopHoldPlayback({bool resume = true}) async {
-    await _holdPlayback?.stop(resume: resume);
+  Future<void> stopHoldPlayback() async {
+    await _holdPlayback?.stop();
   }
 
   Future<void> load(VideoSource source) async {
@@ -94,7 +94,7 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
   }
 
   Future<void> pause() async {
-    await stopHoldPlayback(resume: false);
+    await stopHoldPlayback();
     if (_controller == null) {
       return;
     }
@@ -110,7 +110,7 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
   }
 
   Future<void> play() async {
-    await stopHoldPlayback(resume: false);
+    await stopHoldPlayback();
     if (_controller == null) {
       return;
     }
@@ -149,6 +149,20 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
     _seekTimer = Timer(const Duration(milliseconds: 150), () {
       unawaited(_controller?.seekTo(state.position.inMilliseconds));
     });
+  }
+
+  void seekBy(Duration offset) {
+    if (state.duration == Duration.zero) {
+      return;
+    }
+    final target = state.position + offset;
+    seekTo(
+      target < Duration.zero
+          ? Duration.zero
+          : target > state.duration
+          ? state.duration
+          : target,
+    );
   }
 
   void toggle() {
@@ -263,7 +277,7 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
 
     final newStatus = _mapStatus(playbackInfo.status);
     if (newStatus == VideoPlaybackStatus.completed) {
-      unawaited(stopHoldPlayback(resume: false));
+      unawaited(stopHoldPlayback());
     }
     switch (newStatus) {
       case VideoPlaybackStatus.playing:

@@ -247,7 +247,10 @@ class _AssetPageState extends ConsumerState<AssetPage> {
     _viewer.setOpacity(opacity);
   }
 
-  void _onTapUp(BuildContext context, TapUpDetails details, PhotoViewControllerValue controllerValue) {
+  void _onTapUp(BuildContext context, TapUpDetails details, PhotoViewControllerValue controllerValue) =>
+      _handleTap(context, details.globalPosition);
+
+  void _handleTap(BuildContext context, Offset globalPosition) {
     if (_showingDetails || _dragStart != null) {
       return;
     }
@@ -258,7 +261,7 @@ class _AssetPageState extends ConsumerState<AssetPage> {
       return;
     }
 
-    final tapX = details.globalPosition.dx;
+    final tapX = globalPosition.dx;
     final screenWidth = context.width;
 
     // Navigate if the user taps in the leftmost or rightmost quarter of the screen
@@ -379,6 +382,7 @@ class _AssetPageState extends ConsumerState<AssetPage> {
     return VideoHoldGesture(
       assetId: asset.id,
       enabled: isCurrent && !asset.isMotionPhoto,
+      onSingleTap: (details) => _handleTap(context, details.globalPosition),
       child: PhotoView.customChild(
         key: Key(asset.heroTag),
         childSize: asset.width != null && asset.height != null
@@ -388,7 +392,6 @@ class _AssetPageState extends ConsumerState<AssetPage> {
         onDragUpdate: _onDragUpdate,
         onDragEnd: _onDragEnd,
         onDragCancel: _onDragCancel,
-        onTapUp: _onTapUp,
         scaleStateChangedCallback: _onScaleStateChanged,
         heroAttributes: heroAttributes,
         filterQuality: FilterQuality.high,
