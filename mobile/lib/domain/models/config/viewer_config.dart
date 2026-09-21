@@ -10,6 +10,7 @@ abstract class ViewerConfig with _$ViewerConfig {
     @Default(false) bool loadOriginalVideo,
     @Default(true) bool autoPlayVideo,
     @Default(2) int holdSpeed,
+    @Default(5) int doubleTapSeekSeconds,
     @Default(false) bool tapToNavigate,
   }) = _ViewerConfig;
 }

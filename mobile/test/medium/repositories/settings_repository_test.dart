@@ -46,6 +46,17 @@ void main() {
     });
   });
 
+  group('video double-tap seek duration', () {
+    test('defaults to 5 seconds and survives reload for every supported duration', () async {
+      expect(sut.appConfig.viewer.doubleTapSeekSeconds, 5);
+      for (final seconds in [10, 20, 5]) {
+        await sut.write(.viewerDoubleTapSeekSeconds, seconds);
+        await sut.refresh();
+        expect(sut.appConfig.viewer.doubleTapSeekSeconds, seconds);
+      }
+    });
+  });
+
   group('write', () {
     test('persists a value and reflects it in the composed view', () async {
       await sut.write(.themeMode, ThemeMode.dark);

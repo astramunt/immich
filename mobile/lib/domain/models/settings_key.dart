@@ -23,6 +23,7 @@ enum SettingsKey<T> {
   viewerLoadOriginalVideo<bool>(),
   viewerAutoPlayVideo<bool>(),
   viewerHoldSpeed<int>(),
+  viewerDoubleTapSeekSeconds<int>(),
   viewerTapToNavigate<bool>(),
 
   // Network

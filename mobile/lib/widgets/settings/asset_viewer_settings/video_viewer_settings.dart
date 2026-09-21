@@ -42,18 +42,21 @@ class VideoViewerSettings extends HookConsumerWidget {
           title: context.t.setting_video_viewer_looping_title,
           subtitle: context.t.loop_videos_description,
         ),
-        ListTile(
-          title: Text(context.t.setting_video_hold_speed_title),
-          subtitle: Text(context.t.setting_video_hold_speed_subtitle),
+        _VideoOptionDropdown(
+          title: context.t.setting_video_hold_speed_title,
+          subtitle: context.t.setting_video_hold_speed_subtitle,
+          value: viewer.holdSpeed,
+          values: VideoHoldPlayback.speeds,
+          label: (value) => '×$value',
+          onChanged: (speed) => unawaited(ref.read(settingsProvider).write(.viewerHoldSpeed, speed)),
         ),
-        SettingsRadioListTile<int>(
-          groups: VideoHoldPlayback.speeds.map((speed) => SettingsRadioGroup(title: '×$speed', value: speed)).toList(),
-          groupBy: viewer.holdSpeed,
-          onRadioChanged: (speed) {
-            if (speed != null) {
-              unawaited(ref.read(settingsProvider).write(.viewerHoldSpeed, speed));
-            }
-          },
+        _VideoOptionDropdown(
+          title: context.t.setting_video_double_tap_seek_title,
+          subtitle: context.t.setting_video_double_tap_seek_subtitle,
+          value: viewer.doubleTapSeekSeconds,
+          values: const [5, 10, 20],
+          label: (value) => '$value s',
+          onChanged: (seconds) => unawaited(ref.read(settingsProvider).write(.viewerDoubleTapSeekSeconds, seconds)),
         ),
         SettingsSwitchListTile(
           valueNotifier: useOriginalVideo,
@@ -61,6 +64,43 @@ class VideoViewerSettings extends HookConsumerWidget {
           subtitle: context.t.setting_video_viewer_original_video_subtitle,
         ),
       ],
+    );
+  }
+}
+
+class _VideoOptionDropdown extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final int value;
+  final List<int> values;
+  final String Function(int value) label;
+  final ValueChanged<int> onChanged;
+
+  const _VideoOptionDropdown({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.values,
+    required this.label,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: value,
+          items: values.map((value) => DropdownMenuItem(value: value, child: Text(label(value)))).toList(),
+          onChanged: (value) {
+            if (value != null) {
+              onChanged(value);
+            }
+          },
+        ),
+      ),
     );
   }
 }
