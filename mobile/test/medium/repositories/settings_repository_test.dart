@@ -35,6 +35,17 @@ void main() {
     });
   });
 
+  group('video hold speed', () {
+    test('defaults to 2 and survives reload for every supported speed', () async {
+      expect(sut.appConfig.viewer.holdSpeed, 2);
+      for (final speed in [5, 10, 2]) {
+        await sut.write(.viewerHoldSpeed, speed);
+        await sut.refresh();
+        expect(sut.appConfig.viewer.holdSpeed, speed);
+      }
+    });
+  });
+
   group('write', () {
     test('persists a value and reflects it in the composed view', () async {
       await sut.write(.themeMode, ThemeMode.dark);

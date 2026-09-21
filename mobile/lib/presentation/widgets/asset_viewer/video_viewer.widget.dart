@@ -94,7 +94,8 @@ class _NativeVideoViewerState extends ConsumerState<NativeVideoViewer> with Widg
           await _notifier.play();
         }
       case AppLifecycleState.paused:
-        _shouldPlayOnForeground = await _controller?.isPlaying() ?? true;
+        _shouldPlayOnForeground =
+            ref.read(videoPlayerProvider(widget.asset.id)).holdSpeed != 0 || (await _controller?.isPlaying() ?? true);
         if (_shouldPlayOnForeground && mounted) {
           await _notifier.pause();
         }

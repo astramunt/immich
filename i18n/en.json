@@ -1969,6 +1969,8 @@
   "setting_notifications_notify_minutes": "{count} minutes",
   "setting_notifications_notify_seconds": "{count} seconds",
   "setting_notifications_subtitle": "Adjust your notification preferences",
+  "setting_video_hold_speed_subtitle": "Hold the right side to fast-forward or the left side to rewind while a video is playing. Release to resume normal playback.",
+  "setting_video_hold_speed_title": "Press-and-hold video speed",
   "setting_video_viewer_auto_play_subtitle": "Automatically start playing videos when they are opened",
   "setting_video_viewer_auto_play_title": "Auto play videos",
   "setting_video_viewer_looping_title": "Looping",

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:immich_mobile/services/video_hold_playback.dart';
 import 'package:logging/logging.dart';
 import 'package:native_video_player/native_video_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -16,6 +17,7 @@ abstract class VideoPlayerState with _$VideoPlayerState {
     required Duration position,
     required Duration duration,
     required VideoPlaybackStatus status,
+    @Default(0) int holdSpeed,
   }) = _VideoPlayerState;
 }
 
@@ -41,9 +43,11 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
   Timer? _bufferingTimer;
   Timer? _seekTimer;
   VideoPlaybackStatus? _holdStatus;
+  VideoHoldPlayback? _holdPlayback;
 
   @override
   void dispose() {
+    _holdPlayback?.dispose();
     _bufferingTimer?.cancel();
     _seekTimer?.cancel();
     unawaited(WakelockPlus.disable());
@@ -53,7 +57,31 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
   }
 
   void attachController(NativeVideoPlayerController controller) {
+    _holdPlayback?.dispose();
     _controller = controller;
+    _holdPlayback = VideoHoldPlayback(
+      controller,
+      onSpeedChanged: (speed) {
+        scheduleMicrotask(() {
+          if (mounted) {
+            state = state.copyWith(holdSpeed: speed);
+          }
+        });
+      },
+    );
+  }
+
+  Future<void> startHoldPlayback({required bool reverse, required int speed}) async {
+    if (state.duration == Duration.zero ||
+        state.status != VideoPlaybackStatus.playing ||
+        (_seekTimer?.isActive ?? false)) {
+      return;
+    }
+    await _holdPlayback?.start(reverse: reverse, speed: speed);
+  }
+
+  Future<void> stopHoldPlayback({bool resume = true}) async {
+    await _holdPlayback?.stop(resume: resume);
   }
 
   Future<void> load(VideoSource source) async {
@@ -66,6 +94,7 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
   }
 
   Future<void> pause() async {
+    await stopHoldPlayback(resume: false);
     if (_controller == null) {
       return;
     }
@@ -81,6 +110,7 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
   }
 
   Future<void> play() async {
+    await stopHoldPlayback(resume: false);
     if (_controller == null) {
       return;
     }
@@ -140,7 +170,7 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
       return;
     }
 
-    _holdStatus = state.status;
+    _holdStatus = _holdPlayback?.isActive == true ? VideoPlaybackStatus.playing : state.status;
     unawaited(pause());
   }
 
@@ -232,6 +262,9 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
     }
 
     final newStatus = _mapStatus(playbackInfo.status);
+    if (newStatus == VideoPlaybackStatus.completed) {
+      unawaited(stopHoldPlayback(resume: false));
+    }
     switch (newStatus) {
       case VideoPlaybackStatus.playing:
         unawaited(WakelockPlus.enable());
