@@ -9,11 +9,18 @@ import 'package:immich_mobile/presentation/widgets/images/thumbnail.widget.dart'
 import 'package:immich_mobile/providers/infrastructure/asset.provider.dart';
 
 class AlbumTile extends ConsumerWidget {
-  const AlbumTile({super.key, required this.album, required this.isOwner, this.onAlbumSelected});
+  const AlbumTile({
+    super.key,
+    required this.album,
+    required this.isOwner,
+    this.onAlbumSelected,
+    this.isSelected = false,
+  });
 
   final RemoteAlbum album;
   final bool isOwner;
   final Function(RemoteAlbum)? onAlbumSelected;
+  final bool isSelected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -32,6 +39,13 @@ class AlbumTile extends ConsumerWidget {
         style: context.textTheme.bodyMedium?.copyWith(color: context.colorScheme.onSurfaceSecondary),
       ),
       onTap: () => onAlbumSelected?.call(album),
+      selected: isSelected,
+      trailing: isSelected
+          ? Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Icon(Icons.check_circle_rounded, color: context.colorScheme.primary),
+            )
+          : null,
       leadingPadding: const EdgeInsets.only(right: 16),
       leading: FutureBuilder(
         future: albumThumbnailAsset,

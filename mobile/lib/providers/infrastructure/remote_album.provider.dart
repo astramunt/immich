@@ -7,6 +7,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/models/album/album.model.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
 import 'package:immich_mobile/domain/models/user.model.dart';
+import 'package:immich_mobile/domain/services/album_deletion.service.dart';
 import 'package:immich_mobile/domain/services/remote_album.service.dart';
 import 'package:immich_mobile/models/albums/album_search.model.dart';
 import 'package:immich_mobile/providers/album/album_sort_by_options.provider.dart';
@@ -32,11 +33,13 @@ abstract class RemoteAlbumState with _$RemoteAlbumState {
 
 class RemoteAlbumNotifier extends Notifier<RemoteAlbumState> {
   late RemoteAlbumService _remoteAlbumService;
+  late AlbumDeletionService _albumDeletionService;
   final _logger = Logger('RemoteAlbumNotifier');
 
   @override
   RemoteAlbumState build() {
     _remoteAlbumService = ref.read(remoteAlbumServiceProvider);
+    _albumDeletionService = ref.read(albumDeletionServiceProvider);
     return const RemoteAlbumState(albums: []);
   }
 
@@ -183,6 +186,27 @@ class RemoteAlbumNotifier extends Notifier<RemoteAlbumState> {
 
     final updatedAlbums = state.albums.where((album) => album.id != albumId).toList();
     state = state.copyWith(albums: updatedAlbums);
+  }
+
+  Future<int> deleteAlbums(Iterable<RemoteAlbum> albums, {required bool trashContents}) async {
+    final albumsToDelete = albums.toList(growable: false);
+    if (albumsToDelete.isEmpty) {
+      return 0;
+    }
+
+    var trashedAssets = 0;
+    if (trashContents) {
+      final currentUser = ref.read(currentUserProvider);
+      if (currentUser == null) {
+        throw StateError('User not logged in');
+      }
+      trashedAssets = await _albumDeletionService.trashOwnedContents(albumsToDelete, currentUser.id);
+    }
+
+    for (final album in albumsToDelete) {
+      await deleteAlbum(album.id);
+    }
+    return trashedAssets;
   }
 
   Future<List<RemoteAsset>> getAssets(String albumId) {

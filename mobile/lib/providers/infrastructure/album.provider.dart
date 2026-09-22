@@ -2,9 +2,11 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/models/album/album.model.dart';
 import 'package:immich_mobile/domain/models/album/local_album.model.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
+import 'package:immich_mobile/domain/services/album_deletion.service.dart';
 import 'package:immich_mobile/domain/services/local_album.service.dart';
 import 'package:immich_mobile/domain/services/remote_album.service.dart';
 import 'package:immich_mobile/infrastructure/repositories/local_album.repository.dart';
+import 'package:immich_mobile/providers/infrastructure/asset.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/db.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/remote_album.provider.dart';
 import 'package:immich_mobile/repositories/album_api_repository.dart';
@@ -28,9 +30,13 @@ final remoteAlbumServiceProvider = Provider<RemoteAlbumService>(
   ),
 );
 
+final albumDeletionServiceProvider = Provider<AlbumDeletionService>(
+  (ref) => AlbumDeletionService(ref.watch(remoteAlbumServiceProvider), ref.watch(assetServiceProvider)),
+);
+
 final remoteAlbumProvider = NotifierProvider<RemoteAlbumNotifier, RemoteAlbumState>(
   RemoteAlbumNotifier.new,
-  dependencies: [remoteAlbumServiceProvider],
+  dependencies: [remoteAlbumServiceProvider, albumDeletionServiceProvider],
 );
 
 final albumsContainingAssetProvider = FutureProvider.family<List<RemoteAlbum>, String>(

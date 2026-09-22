@@ -8,6 +8,7 @@ import 'package:immich_mobile/domain/models/album/album.model.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
 import 'package:immich_mobile/generated/translations.g.dart';
+import 'package:immich_mobile/presentation/widgets/album/album_delete_dialog.widget.dart';
 import 'package:immich_mobile/presentation/widgets/album/pending_uploads_banner.widget.dart';
 import 'package:immich_mobile/presentation/widgets/bottom_sheet/remote_album_bottom_sheet.widget.dart';
 import 'package:immich_mobile/presentation/widgets/remote_album/album_option.widget.dart';
@@ -107,38 +108,17 @@ class _RemoteAlbumPageState extends ConsumerState<RemoteAlbumPage> {
   }
 
   Future<void> deleteAlbum(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(context.t.delete_album),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(context.t.album_delete_confirmation(album: _album.name)),
-              const SizedBox(height: 8),
-              Text(context.t.album_delete_confirmation_description),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(context.t.cancel)),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
-              child: Text(context.t.delete_album),
-            ),
-          ],
-        );
-      },
-    );
+    final action = await showAlbumDeleteDialog(context, [_album]);
 
-    if (confirmed == true) {
+    if (action != null) {
       try {
         if (!context.mounted) {
           return;
         }
 
-        await ref.read(remoteAlbumProvider.notifier).deleteAlbum(_album.id);
+        await ref.read(remoteAlbumProvider.notifier).deleteAlbums([
+          _album,
+        ], trashContents: action == AlbumDeleteAction.albumAndContents);
         if (!context.mounted) {
           return;
         }

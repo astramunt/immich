@@ -10,6 +10,8 @@ import 'package:immich_mobile/extensions/build_context_extensions.dart';
 import 'package:immich_mobile/extensions/theme_extensions.dart';
 import 'package:immich_mobile/generated/translations.g.dart';
 import 'package:immich_mobile/models/albums/album_search.model.dart';
+import 'package:immich_mobile/presentation/widgets/album/album_delete_dialog.widget.dart';
+import 'package:immich_mobile/presentation/widgets/album/album_drag_selection.widget.dart';
 import 'package:immich_mobile/presentation/widgets/album/album_tile.dart';
 import 'package:immich_mobile/presentation/widgets/album/new_album_name_modal.widget.dart';
 import 'package:immich_mobile/presentation/widgets/images/thumbnail.widget.dart';
@@ -22,7 +24,6 @@ import 'package:immich_mobile/providers/timeline/multiselect.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
 import 'package:immich_mobile/routing/router.dart';
 import 'package:immich_mobile/utils/album_filter.utils.dart';
-import 'package:immich_mobile/widgets/common/confirm_dialog.dart';
 import 'package:immich_mobile/widgets/common/immich_toast.dart';
 import 'package:immich_mobile/widgets/common/search_field.dart';
 import 'package:sliver_tools/sliver_tools.dart';
@@ -32,8 +33,16 @@ typedef AlbumSelectorCallback = void Function(RemoteAlbum album);
 class AlbumSelector extends ConsumerStatefulWidget {
   final AlbumSelectorCallback onAlbumSelected;
   final Function? onKeyboardExpanded;
+  final Set<String> selectedAlbumIds;
+  final ValueChanged<List<RemoteAlbum>>? onShownAlbumsChanged;
 
-  const AlbumSelector({super.key, required this.onAlbumSelected, this.onKeyboardExpanded});
+  const AlbumSelector({
+    super.key,
+    required this.onAlbumSelected,
+    this.onKeyboardExpanded,
+    this.selectedAlbumIds = const {},
+    this.onShownAlbumsChanged,
+  });
 
   @override
   ConsumerState<AlbumSelector> createState() => _AlbumSelectorState();
@@ -146,6 +155,7 @@ class _AlbumSelectorState extends ConsumerState<AlbumSelector> {
       setState(() {
         shownAlbums = sortedAlbums;
       });
+      widget.onShownAlbumsChanged?.call(List.unmodifiable(shownAlbums));
 
       return;
     }
@@ -161,6 +171,7 @@ class _AlbumSelectorState extends ConsumerState<AlbumSelector> {
     setState(() {
       shownAlbums = filteredAlbums;
     });
+    widget.onShownAlbumsChanged?.call(List.unmodifiable(shownAlbums));
   }
 
   @override
@@ -207,8 +218,18 @@ class _AlbumSelectorState extends ConsumerState<AlbumSelector> {
             currentIsReverse: sort.isReverse,
           ),
           isGrid
-              ? _AlbumGrid(albums: shownAlbums, userId: userId, onAlbumSelected: widget.onAlbumSelected)
-              : _AlbumList(albums: shownAlbums, userId: userId, onAlbumSelected: widget.onAlbumSelected),
+              ? _AlbumGrid(
+                  albums: shownAlbums,
+                  userId: userId,
+                  onAlbumSelected: widget.onAlbumSelected,
+                  selectedAlbumIds: widget.selectedAlbumIds,
+                )
+              : _AlbumList(
+                  albums: shownAlbums,
+                  userId: userId,
+                  onAlbumSelected: widget.onAlbumSelected,
+                  selectedAlbumIds: widget.selectedAlbumIds,
+                ),
         ],
       ),
     );
@@ -555,11 +576,17 @@ class _QuickSortAndViewMode extends StatelessWidget {
 }
 
 class _AlbumList extends ConsumerWidget {
-  const _AlbumList({required this.albums, required this.userId, required this.onAlbumSelected});
+  const _AlbumList({
+    required this.albums,
+    required this.userId,
+    required this.onAlbumSelected,
+    required this.selectedAlbumIds,
+  });
 
   final List<RemoteAlbum> albums;
   final String? userId;
   final AlbumSelectorCallback onAlbumSelected;
+  final Set<String> selectedAlbumIds;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -577,10 +604,20 @@ class _AlbumList extends ConsumerWidget {
         itemBuilder: (_, index) {
           final album = albums[index];
           final isOwner = album.ownerId == userId;
+          final isSelected = selectedAlbumIds.contains(album.id);
+          final selectionMode = selectedAlbumIds.isNotEmpty;
 
-          if (isOwner) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
+          final albumTile = AlbumTile(
+            album: album,
+            isOwner: isOwner,
+            isSelected: isSelected,
+            onAlbumSelected: onAlbumSelected,
+          );
+          Widget tile = Padding(padding: const EdgeInsets.only(bottom: 8.0), child: albumTile);
+
+          if (isOwner && !selectionMode) {
+            tile = Padding(
+              padding: const EdgeInsets.only(bottom: 8),
               child: Dismissible(
                 key: ValueKey(album.id),
                 background: Container(
@@ -590,29 +627,33 @@ class _AlbumList extends ConsumerWidget {
                   child: Icon(Icons.delete, color: context.colorScheme.onError),
                 ),
                 direction: DismissDirection.endToStart,
-                confirmDismiss: (direction) {
-                  return showDialog<bool>(
-                    context: context,
-                    builder: (context) => ConfirmDialog(
-                      onOk: () => true,
-                      title: context.t.delete_album,
-                      content: context.t.album_delete_confirmation(album: album.name),
-                      ok: context.t.delete,
-                    ),
-                  );
+                confirmDismiss: (direction) async {
+                  final action = await showAlbumDeleteDialog(context, [album]);
+                  if (action == null) {
+                    return false;
+                  }
+                  try {
+                    await ref.read(remoteAlbumProvider.notifier).deleteAlbums([
+                      album,
+                    ], trashContents: action == AlbumDeleteAction.albumAndContents);
+                    return true;
+                  } catch (_) {
+                    if (context.mounted) {
+                      ImmichToast.show(
+                        context: context,
+                        msg: context.t.album_viewer_appbar_share_err_delete,
+                        toastType: ToastType.error,
+                      );
+                    }
+                    return false;
+                  }
                 },
-                onDismissed: (direction) async {
-                  await ref.read(remoteAlbumProvider.notifier).deleteAlbum(album.id);
-                },
-                child: AlbumTile(album: album, isOwner: isOwner, onAlbumSelected: onAlbumSelected),
+                child: albumTile,
               ),
             );
-          } else {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: AlbumTile(album: album, isOwner: isOwner, onAlbumSelected: onAlbumSelected),
-            );
           }
+
+          return AlbumIndexWrapper(index: index, child: tile);
         },
         itemCount: albums.length,
       ),
@@ -621,11 +662,17 @@ class _AlbumList extends ConsumerWidget {
 }
 
 class _AlbumGrid extends StatelessWidget {
-  const _AlbumGrid({required this.albums, required this.userId, required this.onAlbumSelected});
+  const _AlbumGrid({
+    required this.albums,
+    required this.userId,
+    required this.onAlbumSelected,
+    required this.selectedAlbumIds,
+  });
 
   final List<RemoteAlbum> albums;
   final String? userId;
   final AlbumSelectorCallback onAlbumSelected;
+  final Set<String> selectedAlbumIds;
 
   @override
   Widget build(BuildContext context) {
@@ -648,7 +695,15 @@ class _AlbumGrid extends StatelessWidget {
         ),
         delegate: SliverChildBuilderDelegate((context, index) {
           final album = albums[index];
-          return _GridAlbumCard(album: album, userId: userId, onAlbumSelected: onAlbumSelected);
+          return AlbumIndexWrapper(
+            index: index,
+            child: _GridAlbumCard(
+              album: album,
+              userId: userId,
+              onAlbumSelected: onAlbumSelected,
+              isSelected: selectedAlbumIds.contains(album.id),
+            ),
+          );
         }, childCount: albums.length),
       ),
     );
@@ -656,11 +711,17 @@ class _AlbumGrid extends StatelessWidget {
 }
 
 class _GridAlbumCard extends ConsumerWidget {
-  const _GridAlbumCard({required this.album, required this.userId, required this.onAlbumSelected});
+  const _GridAlbumCard({
+    required this.album,
+    required this.userId,
+    required this.onAlbumSelected,
+    required this.isSelected,
+  });
 
   final RemoteAlbum album;
   final String? userId;
   final AlbumSelectorCallback onAlbumSelected;
+  final bool isSelected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -670,63 +731,76 @@ class _GridAlbumCard extends ConsumerWidget {
       onTap: () => onAlbumSelected(album),
       child: Card(
         elevation: 0,
-        color: context.colorScheme.surfaceBright,
+        color: isSelected ? context.colorScheme.primaryContainer : context.colorScheme.surfaceBright,
         shape: RoundedRectangleBorder(
           borderRadius: const BorderRadius.all(Radius.circular(16)),
-          side: BorderSide(color: context.colorScheme.onSurface.withAlpha(25), width: 1),
+          side: BorderSide(
+            color: isSelected ? context.colorScheme.primary : context.colorScheme.onSurface.withAlpha(25),
+            width: isSelected ? 2 : 1,
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            Expanded(
-              flex: 2,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FutureBuilder(
-                    future: albumThumbnailAsset,
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData && snapshot.data != null) {
-                        return Thumbnail.remote(
-                          remoteId: album.thumbnailAssetId!,
-                          thumbhash: snapshot.data!.thumbHash ?? "",
-                        );
-                      }
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FutureBuilder(
+                        future: albumThumbnailAsset,
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData && snapshot.data != null) {
+                            return Thumbnail.remote(
+                              remoteId: album.thumbnailAssetId!,
+                              thumbhash: snapshot.data!.thumbHash ?? "",
+                            );
+                          }
 
-                      return ColoredBox(
-                        color: context.colorScheme.surfaceContainerHighest,
-                        child: const Icon(Icons.photo_album_rounded, size: 40, color: Colors.grey),
-                      );
-                    },
+                          return ColoredBox(
+                            color: context.colorScheme.surfaceContainerHighest,
+                            child: const Icon(Icons.photo_album_rounded, size: 40, color: Colors.grey),
+                          );
+                        },
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            Expanded(
-              flex: 1,
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Text(
-                      album.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                Expanded(
+                  flex: 1,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Text(
+                          album.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          '${context.t.items_count(count: album.assetCount)} • ${album.ownerId != userId ? context.t.shared_by_user(user: album.ownerName) : context.t.owned}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.textTheme.labelMedium?.copyWith(color: context.colorScheme.onSurfaceSecondary),
+                        ),
+                      ],
                     ),
-                    Text(
-                      '${context.t.items_count(count: album.assetCount)} • ${album.ownerId != userId ? context.t.shared_by_user(user: album.ownerName) : context.t.owned}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.textTheme.labelMedium?.copyWith(color: context.colorScheme.onSurfaceSecondary),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
+            if (isSelected)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Icon(Icons.check_circle_rounded, color: context.colorScheme.primary, size: 28),
+              ),
           ],
         ),
       ),
