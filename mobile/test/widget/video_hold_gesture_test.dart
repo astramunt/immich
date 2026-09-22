@@ -53,6 +53,7 @@ void main() {
     TestVideoPlayer player, {
     bool enabled = true,
     VoidCallback? onSideTap,
+    ValueChanged<PhotoViewControllerBase>? onPageBuild,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -68,9 +69,11 @@ void main() {
             assetId: 'video',
             enabled: enabled,
             onSingleTap: (_) => onSideTap?.call(),
-            child: const PhotoView.customChild(
-              childSize: Size(200, 100),
-              child: ColoredBox(color: Colors.blue),
+            child: PhotoView.customChild(
+              childSize: const Size(200, 100),
+              onPageBuild: onPageBuild,
+              disableDoubleTapZoom: true,
+              child: const ColoredBox(color: Colors.blue),
             ),
           ),
         ),
@@ -111,6 +114,40 @@ void main() {
     expect(player.seeks, [const Duration(seconds: -10), const Duration(seconds: 10)]);
     expect(find.text('+10 s'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('double tapping video controls never changes the video zoom', (tester) async {
+    final player = TestVideoPlayer();
+    late PhotoViewControllerBase controller;
+    await mount(tester, player, onPageBuild: (value) => controller = value);
+    final initialScale = controller.scale;
+
+    for (final position in const [Offset(20, 300), Offset(400, 300), Offset(780, 300)]) {
+      await doubleTapAt(tester, position);
+      await tester.pumpAndSettle();
+      expect(controller.scale, initialScale);
+    }
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('double tapping a photo view still zooms by default', (tester) async {
+    late PhotoViewControllerBase controller;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PhotoView.customChild(
+          childSize: const Size(200, 100),
+          onPageBuild: (value) => controller = value,
+          child: const ColoredBox(color: Colors.blue),
+        ),
+      ),
+    );
+    final initialScale = controller.scale;
+
+    await doubleTapAt(tester, const Offset(400, 300));
+    await tester.pumpAndSettle();
+
+    expect(controller.scale, isNot(initialScale));
   });
 
   testWidgets('tapping the center toggles playback and shows transient feedback', (tester) async {

@@ -51,6 +51,7 @@ class PhotoViewCore extends StatefulWidget {
     required this.filterQuality,
     required this.disableGestures,
     required this.disableScaleGestures,
+    required this.disableDoubleTapZoom,
     required this.enablePanAlways,
   }) : customChild = null;
 
@@ -78,6 +79,7 @@ class PhotoViewCore extends StatefulWidget {
     required this.filterQuality,
     required this.disableGestures,
     required this.disableScaleGestures,
+    required this.disableDoubleTapZoom,
     required this.enablePanAlways,
   }) : semanticLabel = null,
        imageProvider = null,
@@ -112,6 +114,7 @@ class PhotoViewCore extends StatefulWidget {
   final bool tightMode;
   final bool disableGestures;
   final bool disableScaleGestures;
+  final bool disableDoubleTapZoom;
   final bool enablePanAlways;
 
   final FilterQuality filterQuality;
@@ -380,7 +383,7 @@ class PhotoViewCoreState extends State<PhotoViewCore>
 
           return PhotoViewGestureDetector(
             disableScaleGestures: widget.disableScaleGestures,
-            onDoubleTap: widget.disableScaleGestures ? null : onDoubleTap,
+            onDoubleTap: widget.disableScaleGestures || widget.disableDoubleTapZoom ? null : onDoubleTap,
             onScaleStart: widget.disableScaleGestures ? null : onScaleStart,
             onScaleUpdate: widget.disableScaleGestures ? null : onScaleUpdate,
             onScaleEnd: widget.disableScaleGestures ? null : onScaleEnd,

@@ -36,6 +36,7 @@ class ImageWrapper extends StatefulWidget {
     required this.filterQuality,
     required this.disableGestures,
     this.disableScaleGestures,
+    this.disableDoubleTapZoom,
     required this.errorBuilder,
     required this.enablePanAlways,
     required this.index,
@@ -71,6 +72,7 @@ class ImageWrapper extends StatefulWidget {
   final FilterQuality? filterQuality;
   final bool? disableGestures;
   final bool? disableScaleGestures;
+  final bool? disableDoubleTapZoom;
   final bool? enablePanAlways;
   final int index;
 
@@ -210,6 +212,7 @@ class _ImageWrapperState extends State<ImageWrapper> {
         filterQuality: widget.filterQuality,
         disableGestures: widget.disableGestures,
         disableScaleGestures: true,
+        disableDoubleTapZoom: widget.disableDoubleTapZoom,
         enablePanAlways: widget.enablePanAlways,
         child: _loading ? _buildLoading(context) : _buildError(context),
       );
@@ -240,6 +243,7 @@ class _ImageWrapperState extends State<ImageWrapper> {
       filterQuality: widget.filterQuality ?? FilterQuality.none,
       disableGestures: widget.disableGestures ?? false,
       disableScaleGestures: widget.disableScaleGestures ?? false,
+      disableDoubleTapZoom: widget.disableDoubleTapZoom ?? false,
       enablePanAlways: widget.enablePanAlways ?? false,
     );
   }
@@ -290,6 +294,7 @@ class CustomChildWrapper extends StatelessWidget {
     required this.filterQuality,
     required this.disableGestures,
     this.disableScaleGestures,
+    this.disableDoubleTapZoom,
     required this.enablePanAlways,
   });
 
@@ -322,6 +327,7 @@ class CustomChildWrapper extends StatelessWidget {
   final bool? tightMode;
   final FilterQuality? filterQuality;
   final bool? disableScaleGestures;
+  final bool? disableDoubleTapZoom;
   final bool? disableGestures;
   final bool? enablePanAlways;
 
@@ -358,6 +364,7 @@ class CustomChildWrapper extends StatelessWidget {
       filterQuality: filterQuality ?? FilterQuality.none,
       disableGestures: disableGestures ?? false,
       disableScaleGestures: disableScaleGestures ?? false,
+      disableDoubleTapZoom: disableDoubleTapZoom ?? false,
       enablePanAlways: enablePanAlways ?? false,
     );
   }

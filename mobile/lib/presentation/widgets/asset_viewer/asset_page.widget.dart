@@ -402,6 +402,7 @@ class _AssetPageState extends ConsumerState<AssetPage> {
         tightMode: true,
         onPageBuild: _onPageBuild,
         enablePanAlways: true,
+        disableDoubleTapZoom: true,
         child: NativeVideoViewer(
           key: _NativeVideoViewerKey(asset.heroTag),
           asset: asset,

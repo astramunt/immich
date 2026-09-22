@@ -266,6 +266,7 @@ class PhotoView extends StatefulWidget {
     this.filterQuality,
     this.disableGestures,
     this.disableScaleGestures,
+    this.disableDoubleTapZoom,
     this.errorBuilder,
     this.enablePanAlways,
   }) : child = null,
@@ -308,6 +309,7 @@ class PhotoView extends StatefulWidget {
     this.tightMode,
     this.filterQuality,
     this.disableScaleGestures,
+    this.disableDoubleTapZoom,
     this.disableGestures,
     this.enablePanAlways,
   }) : semanticLabel = null,
@@ -447,6 +449,9 @@ class PhotoView extends StatefulWidget {
   /// Mirror to [PhotoView.disableGestures]
   final bool? disableScaleGestures;
 
+  /// Disables zooming by double tap while preserving pinch-to-zoom gestures.
+  final bool? disableDoubleTapZoom;
+
   /// Enable pan the widget even if it's smaller than the hole parent widget.
   /// Useful when you want to drag a widget without restrictions.
   final bool? enablePanAlways;
@@ -578,6 +583,7 @@ class _PhotoViewState extends State<PhotoView> with AutomaticKeepAliveClientMixi
                 filterQuality: widget.filterQuality,
                 disableGestures: widget.disableGestures,
                 disableScaleGestures: widget.disableScaleGestures,
+                disableDoubleTapZoom: widget.disableDoubleTapZoom,
                 enablePanAlways: widget.enablePanAlways,
                 child: widget.child,
               )
@@ -611,6 +617,7 @@ class _PhotoViewState extends State<PhotoView> with AutomaticKeepAliveClientMixi
                 filterQuality: widget.filterQuality,
                 disableGestures: widget.disableGestures,
                 disableScaleGestures: widget.disableScaleGestures,
+                disableDoubleTapZoom: widget.disableDoubleTapZoom,
                 errorBuilder: widget.errorBuilder,
                 enablePanAlways: widget.enablePanAlways,
                 index: widget.index,
