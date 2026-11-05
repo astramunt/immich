@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:immich_mobile/presentation/widgets/asset_viewer/video_zone_frames.widget.dart';
 import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart';
 import 'package:immich_mobile/providers/asset_viewer/video_player_provider.dart';
 import 'package:immich_mobile/providers/cast.provider.dart';
@@ -28,8 +29,6 @@ class VideoHoldGesture extends ConsumerStatefulWidget {
 }
 
 class _VideoHoldGestureState extends ConsumerState<VideoHoldGesture> {
-  static const _pauseSize = 96.0;
-  static const _edgeFraction = 0.25;
   static const _feedbackDuration = Duration(milliseconds: 700);
 
   final _zoom = PhotoViewScaleStateController();
@@ -73,13 +72,13 @@ class _VideoHoldGestureState extends ConsumerState<VideoHoldGesture> {
         unawaited(_player.stopHoldPlayback());
       }
     });
+    final viewer = ref.watch(appConfigProvider.select((config) => config.viewer));
     final enabled = widget.enabled && !casting && !details;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = constraints.biggest;
-        final edgeWidth = size.width * _edgeFraction;
-        final pauseBox = Rect.fromCenter(center: size.center(Offset.zero), width: _pauseSize, height: _pauseSize);
+        final zones = VideoGestureZones(size, viewer);
         final holdSpeed = state.holdSpeed;
         final feedback = holdSpeed != 0
             ? _VideoGestureFeedback(icon: Icons.fast_forward, label: '×$holdSpeed')
@@ -97,11 +96,11 @@ class _VideoHoldGestureState extends ConsumerState<VideoHoldGesture> {
           onDoubleTap: enabled
               ? () {
                   final position = _doubleTapPosition;
-                  if (pauseBox.contains(position)) {
+                  if (zones.pause.contains(position)) {
                     return;
                   }
-                  final left = position.dx < edgeWidth;
-                  final right = position.dx > size.width - edgeWidth;
+                  final left = position.dx < zones.edge;
+                  final right = position.dx > size.width - zones.edge;
                   if (!left && !right) {
                     _zoom.scaleState = _zoom.scaleState == PhotoViewScaleState.initial
                         ? PhotoViewScaleState.videoZoom
@@ -109,7 +108,7 @@ class _VideoHoldGestureState extends ConsumerState<VideoHoldGesture> {
                     return;
                   }
 
-                  final top = position.dy < size.height / 2;
+                  final top = position.dy < zones.split;
                   final forward = left ? top : !top;
                   final seconds = ref.read(appConfigProvider).viewer.doubleTapSeekSeconds;
                   _player.seekBy(Duration(seconds: forward ? seconds : -seconds));
@@ -118,7 +117,7 @@ class _VideoHoldGestureState extends ConsumerState<VideoHoldGesture> {
               : null,
           onTapUp: enabled
               ? (details) {
-                  if (pauseBox.contains(details.localPosition)) {
+                  if (zones.pause.contains(details.localPosition)) {
                     final isPlaying =
                         state.status == VideoPlaybackStatus.playing || state.status == VideoPlaybackStatus.buffering;
                     _player.toggle();
@@ -132,6 +131,7 @@ class _VideoHoldGestureState extends ConsumerState<VideoHoldGesture> {
             fit: StackFit.expand,
             children: [
               widget.builder(_zoom),
+              if (enabled && viewer.showVideoZoneFrames) VideoZoneFrames(zones: zones),
               if (feedback != null)
                 Positioned(
                   top: MediaQuery.paddingOf(context).top + 72,

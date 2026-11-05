@@ -57,6 +57,27 @@ void main() {
     });
   });
 
+  test('video touch target sizes use the current defaults and survive reload independently', () async {
+    const sizes = [
+      (SettingsKey.viewerPauseBoxSize, 96.0, 244.5),
+      (SettingsKey.viewerSeekEdgeWidth, 0.0, 95.25),
+      (SettingsKey.viewerSeekTopHeight, 0.0, 235.5),
+      (SettingsKey.viewerSeekBarWidth, 48.0, 64.5),
+      (SettingsKey.viewerSeekBarHeight, 0.0, 312.5),
+    ];
+    expect(sut.appConfig.viewer.showVideoZoneFrames, isFalse);
+    await sut.write(.viewerShowVideoZoneFrames, true);
+    for (final (key, initial, selected) in sizes) {
+      expect(sut.appConfig.read(key), initial);
+      await sut.write(key, selected);
+    }
+    await sut.refresh();
+    expect(sut.appConfig.viewer.showVideoZoneFrames, isTrue);
+    for (final (key, _, selected) in sizes) {
+      expect(sut.appConfig.read(key), selected);
+    }
+  });
+
   group('write', () {
     test('persists a value and reflects it in the composed view', () async {
       await sut.write(.themeMode, ThemeMode.dark);

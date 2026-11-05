@@ -5,6 +5,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/models/config/app_config.dart';
 import 'package:immich_mobile/domain/models/config/viewer_config.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/video_hold_gesture.widget.dart';
+import 'package:immich_mobile/presentation/widgets/asset_viewer/video_zone_frames.widget.dart';
 import 'package:immich_mobile/providers/asset_viewer/video_player_provider.dart';
 import 'package:immich_mobile/providers/cast.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
@@ -53,6 +54,7 @@ void main() {
     TestVideoPlayer player, {
     bool enabled = true,
     VoidCallback? onViewerTap,
+    ViewerConfig viewer = const ViewerConfig(holdSpeed: 5, doubleTapSeekSeconds: 10),
     Size childSize = const Size(200, 100),
     ValueChanged<PhotoViewControllerBase>? onPageBuild,
   }) async {
@@ -61,9 +63,7 @@ void main() {
         overrides: [
           videoPlayerProvider('video').overrideWith((_) => player),
           castProvider.overrideWith((_) => CastNotifier(MockCastService())),
-          appConfigProvider.overrideWithValue(
-            const AppConfig(viewer: ViewerConfig(holdSpeed: 5, doubleTapSeekSeconds: 10)),
-          ),
+          appConfigProvider.overrideWithValue(AppConfig(viewer: viewer)),
         ],
         child: MaterialApp(
           home: VideoHoldGesture(
@@ -182,6 +182,7 @@ void main() {
   testWidgets('tapping the center toggles playback and shows transient feedback', (tester) async {
     final player = TestVideoPlayer();
     await mount(tester, player);
+    expect(find.byType(VideoZoneFrames), findsNothing);
     await tester.tapAt(const Offset(447, 347));
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -202,6 +203,38 @@ void main() {
     }
     expect(taps, 3);
     expect(player.toggles, 0);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('saved sizes change pause, seek and zoom boundaries', (tester) async {
+    final player = TestVideoPlayer();
+    late PhotoViewControllerBase controller;
+    await mount(
+      tester,
+      player,
+      viewer: const ViewerConfig(
+        pauseBoxSize: 177.5,
+        seekEdgeWidth: 120.25,
+        seekTopHeight: 210.5,
+        showVideoZoneFrames: true,
+      ),
+      onPageBuild: (value) => controller = value,
+    );
+    final zones = tester.widget<VideoZoneFrames>(find.byType(VideoZoneFrames)).zones;
+    expect(zones.pause.size, const Size.square(177.5));
+    expect(zones.edge, 120.25);
+    expect(zones.split, 210.5);
+    expect(find.byType(VideoZoneFrame), findsNWidgets(6));
+    await tester.tapAt(const Offset(488, 388));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(player.toggles, 1);
+    await doubleTapAt(tester, const Offset(80, 240));
+    expect(player.seeks, [const Duration(seconds: -5)]);
+    final initialScale = controller.scale!;
+    await doubleTapAt(tester, const Offset(140, 240));
+    await tester.pumpAndSettle();
+    expect(controller.scale, greaterThan(initialScale));
+    expect(player.seeks, hasLength(1));
     await tester.pumpWidget(const SizedBox());
   });
 

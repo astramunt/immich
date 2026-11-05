@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:immich_mobile/presentation/widgets/asset_viewer/video_zone_frames.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/viewer_bottom_app_bar.widget.dart';
 import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/widgets/asset_viewer/video_controls.dart';
 
 class VideoSideSeekBars extends ConsumerWidget {
@@ -15,6 +17,7 @@ class VideoSideSeekBars extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
+    final viewer = ref.watch(appConfigProvider.select((config) => config.viewer));
     return ViewerControlsVisibility(
       child: SafeArea(
         key: ValueKey(asset.id),
@@ -24,22 +27,15 @@ class VideoSideSeekBars extends ConsumerWidget {
             duration: Durations.short4,
             child: details
                 ? const SizedBox.shrink()
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      for (var i = 0; i < 2; i++)
-                        SizedBox(
-                          width: kMinInteractiveDimension,
-                          height: double.infinity,
-                          child: RotatedBox(
-                            quarterTurns: 3,
-                            child: Directionality(
-                              textDirection: TextDirection.ltr,
-                              child: VideoSeekBar(videoPlayerName: asset.id),
-                            ),
-                          ),
-                        ),
-                    ],
+                : VideoSideZoneLayout(
+                    viewer: viewer,
+                    child: RotatedBox(
+                      quarterTurns: 3,
+                      child: Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: VideoSeekBar(videoPlayerName: asset.id),
+                      ),
+                    ),
                   ),
           ),
         ),

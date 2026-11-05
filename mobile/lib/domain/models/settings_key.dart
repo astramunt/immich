@@ -24,6 +24,15 @@ enum SettingsKey<T> {
   viewerAutoPlayVideo<bool>(),
   viewerHoldSpeed<int>(),
   viewerDoubleTapSeekSeconds<int>(),
+  viewerPauseBoxSize<double>(),
+  viewerSeekEdgePercent<int>(),
+  viewerSeekTopPercent<int>(),
+  viewerSeekBarWidth<double>(),
+  viewerSeekBarHeightPercent<int>(),
+  viewerSeekEdgeWidth<double>(),
+  viewerSeekTopHeight<double>(),
+  viewerSeekBarHeight<double>(),
+  viewerShowVideoZoneFrames<bool>(),
   viewerTapToNavigate<bool>(),
 
   // Network

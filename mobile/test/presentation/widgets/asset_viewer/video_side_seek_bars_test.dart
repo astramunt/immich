@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:immich_mobile/domain/models/config/app_config.dart';
+import 'package:immich_mobile/domain/models/config/viewer_config.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/video_side_seek_bars.widget.dart';
+import 'package:immich_mobile/presentation/widgets/asset_viewer/video_zone_frames.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/viewer_bottom_app_bar.widget.dart';
 import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart';
 import 'package:immich_mobile/providers/asset_viewer/video_player_provider.dart';
+import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/services/gcast.service.dart';
 import 'package:immich_mobile/widgets/asset_viewer/video_controls.dart';
 
@@ -45,11 +49,15 @@ void main() {
         'dev.flutter.pigeon.wakelock_plus_platform_interface.WakelockPlusApi.toggle',
         (_) async => const StandardMessageCodec().encodeMessage([null]),
       );
+      final config = size.height > size.width
+          ? const ViewerConfig(seekBarWidth: 68.25, seekBarHeight: 333.5, showVideoZoneFrames: true)
+          : const ViewerConfig();
       final player = _Player();
       var viewerTaps = 0;
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            appConfigProvider.overrideWithValue(AppConfig(viewer: config)),
             assetViewerProvider.overrideWith(_Viewer.new),
             videoPlayerProvider(_video.id).overrideWith((_) => player),
             gCastServiceProvider.overrideWithValue(MockGCastService()),
@@ -88,7 +96,13 @@ void main() {
 
       final sides = find.descendant(of: find.byType(VideoSideSeekBars), matching: sliders);
       final centers = [tester.getCenter(sides.first), tester.getCenter(sides.last)];
-      expect(centers.map((p) => p.dx), unorderedEquals([24.0, size.width - 24]));
+      final halfWidth = config.seekBarWidth / 2;
+      expect(centers.map((p) => p.dx), unorderedEquals([halfWidth, size.width - halfWidth]));
+      expect(find.byType(VideoZoneFrame), findsNWidgets(config.showVideoZoneFrames ? 2 : 0));
+      if (config.showVideoZoneFrames) {
+        expect(tester.getSize(sides.first).width, config.seekBarHeight);
+        expect(tester.getSize(find.byType(VideoZoneFrame).first), Size(config.seekBarWidth, config.seekBarHeight));
+      }
       for (final center in centers) {
         final gesture = await tester.startGesture(center + const Offset(0, 80));
         await tester.pump(const Duration(milliseconds: 200));
