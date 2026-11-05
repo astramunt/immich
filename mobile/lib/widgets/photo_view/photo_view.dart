@@ -634,7 +634,7 @@ class _PhotoViewState extends State<PhotoView> with AutomaticKeepAliveClientMixi
 PhotoViewScaleState defaultScaleStateCycle(PhotoViewScaleState actual) => switch (actual) {
   PhotoViewScaleState.initial => PhotoViewScaleState.covering,
   PhotoViewScaleState.covering => PhotoViewScaleState.originalSize,
-  PhotoViewScaleState.originalSize => PhotoViewScaleState.initial,
+  PhotoViewScaleState.originalSize || PhotoViewScaleState.videoZoom => PhotoViewScaleState.initial,
   PhotoViewScaleState.zoomedIn || PhotoViewScaleState.zoomedOut => PhotoViewScaleState.initial,
 };
 

@@ -9,8 +9,12 @@ The current upstream baseline is the stable Immich **v3.3.6** release
 - The `personal`, `private`, and `daem` mobile variants, including their icons,
   bundle/package IDs, App Groups, and extension configuration. See
   [mobile/VARIANTS.md](mobile/VARIANTS.md).
-- Configurable video hold speed, double-tap seeking, center-tap playback, and
-  disabled double-tap zoom for videos.
+- Configurable video hold speed and double-tap seeking in the outer quarters of the viewport.
+  Top-left and bottom-right skip forward. Bottom-left and top-right skip back.
+  A single tap in the central 96 × 96 dp square toggles playback. Double taps
+  in the free area toggle between zoom and the fitted video.
+- The video timeline appears below the video and along both edges whenever playback
+  controls are visible. The two side sliders advance from bottom to top.
 - Album selection by long press and drag, bulk album deletion, and optional
   trashing of owned album contents without deleting other users' assets.
 - English and Spanish translations and regression tests for these features.

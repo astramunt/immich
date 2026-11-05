@@ -52,7 +52,8 @@ void main() {
     WidgetTester tester,
     TestVideoPlayer player, {
     bool enabled = true,
-    VoidCallback? onSideTap,
+    VoidCallback? onViewerTap,
+    Size childSize = const Size(200, 100),
     ValueChanged<PhotoViewControllerBase>? onPageBuild,
   }) async {
     await tester.pumpWidget(
@@ -68,9 +69,14 @@ void main() {
           home: VideoHoldGesture(
             assetId: 'video',
             enabled: enabled,
-            onSingleTap: (_) => onSideTap?.call(),
-            child: PhotoView.customChild(
-              childSize: const Size(200, 100),
+            onSingleTap: (_) => onViewerTap?.call(),
+            builder: (zoom) => PhotoView.customChild(
+              childSize: childSize,
+              scaleStateController: zoom,
+              minScale: PhotoViewComputedScale.contained,
+              maxScale: PhotoViewComputedScale.contained * 20,
+              initialScale: PhotoViewComputedScale.contained,
+              tightMode: true,
               onPageBuild: onPageBuild,
               disableDoubleTapZoom: true,
               child: const ColoredBox(color: Colors.blue),
@@ -103,33 +109,56 @@ void main() {
     });
   }
 
-  testWidgets('double tapping the edges seeks by the saved duration in each direction', (tester) async {
-    final player = TestVideoPlayer();
-    await mount(tester, player);
-    await doubleTapAt(tester, const Offset(20, 300));
-    await tester.pump();
-    await doubleTapAt(tester, const Offset(780, 300));
-    await tester.pump();
-
-    expect(player.seeks, [const Duration(seconds: -10), const Duration(seconds: 10)]);
-    expect(find.text('+10 s'), findsOneWidget);
-    await tester.pumpWidget(const SizedBox());
-  });
-
-  testWidgets('double tapping video controls never changes the video zoom', (tester) async {
+  testWidgets('double taps in all four edge regions seek without zooming or pausing', (tester) async {
     final player = TestVideoPlayer();
     late PhotoViewControllerBase controller;
     await mount(tester, player, onPageBuild: (value) => controller = value);
     final initialScale = controller.scale;
-
-    for (final position in const [Offset(20, 300), Offset(400, 300), Offset(780, 300)]) {
+    for (final (position, seconds) in const [
+      (Offset(20, 20), 10),
+      (Offset(20, 300), -10),
+      (Offset(780, 20), -10),
+      (Offset(780, 300), 10),
+    ]) {
       await doubleTapAt(tester, position);
-      await tester.pumpAndSettle();
+      expect(player.seeks.removeLast(), Duration(seconds: seconds));
+      expect(player.seeks, isEmpty);
       expect(controller.scale, initialScale);
     }
 
+    expect(player.toggles, 0);
+    expect(find.text('+10 s'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
+
+  for (final size in const [Size(200, 100), Size(800, 600)]) {
+    testWidgets('free space toggles zoom for a video of size $size', (tester) async {
+      final player = TestVideoPlayer();
+      late PhotoViewControllerBase controller;
+      var viewerTaps = 0;
+      await mount(
+        tester,
+        player,
+        childSize: size,
+        onPageBuild: (value) => controller = value,
+        onViewerTap: () => viewerTaps++,
+      );
+      final initialScale = controller.scale!;
+      await doubleTapAt(tester, const Offset(400, 40));
+      await tester.pumpAndSettle();
+      expect(controller.scale, greaterThan(initialScale));
+      await doubleTapAt(tester, const Offset(351, 300));
+      await tester.pumpAndSettle();
+      expect(controller.scale, initialScale);
+      await doubleTapAt(tester, const Offset(400, 300));
+      await tester.pumpAndSettle();
+      expect(controller.scale, initialScale);
+      expect(player.seeks, isEmpty);
+      expect(player.toggles, 0);
+      expect(viewerTaps, 0);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
 
   testWidgets('double tapping a photo view still zooms by default', (tester) async {
     late PhotoViewControllerBase controller;
@@ -153,7 +182,7 @@ void main() {
   testWidgets('tapping the center toggles playback and shows transient feedback', (tester) async {
     final player = TestVideoPlayer();
     await mount(tester, player);
-    await tester.tapAt(const Offset(400, 300));
+    await tester.tapAt(const Offset(447, 347));
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(player.toggles, 1);
@@ -163,14 +192,15 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('a single side tap keeps the existing viewer behavior', (tester) async {
+  testWidgets('single taps outside the 96 dp pause box use the existing viewer behavior', (tester) async {
     final player = TestVideoPlayer();
     var taps = 0;
-    await mount(tester, player, onSideTap: () => taps++);
-    await tester.tapAt(const Offset(20, 300));
-    await tester.pump(const Duration(milliseconds: 700));
-
-    expect(taps, 1);
+    await mount(tester, player, onViewerTap: () => taps++);
+    for (final position in const [Offset(20, 300), Offset(351, 300), Offset(400, 349)]) {
+      await tester.tapAt(position);
+      await tester.pump(const Duration(milliseconds: 700));
+    }
+    expect(taps, 3);
     expect(player.toggles, 0);
     await tester.pumpWidget(const SizedBox());
   });

@@ -14,8 +14,15 @@ double getScaleForScaleState(PhotoViewScaleState scaleState, ScaleBoundaries sca
       _scaleForCovering(scaleBoundaries.outerSize, scaleBoundaries.childSize),
       scaleBoundaries,
     ),
+    PhotoViewScaleState.videoZoom => _videoZoomScale(scaleBoundaries),
     PhotoViewScaleState.originalSize => _clampSize(1.0, scaleBoundaries),
   };
+}
+
+/// Use the viewer's fill zoom, including a visible zoom when the video already fills the viewport.
+double _videoZoomScale(ScaleBoundaries boundaries) {
+  final covering = getScaleForScaleState(PhotoViewScaleState.covering, boundaries);
+  return covering > boundaries.initialScale ? covering : _clampSize(boundaries.initialScale * 2, boundaries);
 }
 
 /// Internal class to wraps custom scale boundaries (min, max and initial)

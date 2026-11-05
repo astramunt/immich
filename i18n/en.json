@@ -2002,7 +2002,7 @@
   "setting_notifications_notify_minutes": "{count} minutes",
   "setting_notifications_notify_seconds": "{count} seconds",
   "setting_notifications_subtitle": "Adjust your notification preferences",
-  "setting_video_double_tap_seek_subtitle": "Double-tap the left or right edge to skip backward or forward.",
+  "setting_video_double_tap_seek_subtitle": "Double-tap the upper left or lower right to skip forward. Use the lower left or upper right to skip back.",
   "setting_video_double_tap_seek_title": "Double-tap video skip",
   "setting_video_hold_speed_subtitle": "Hold either side to fast-forward while a video is playing. Release to resume normal playback.",
   "setting_video_hold_speed_title": "Press-and-hold video speed",

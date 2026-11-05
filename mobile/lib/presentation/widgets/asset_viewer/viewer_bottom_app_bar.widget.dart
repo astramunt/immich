@@ -3,8 +3,17 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/bottom_bar.widget.dart';
 import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart';
 
-class ViewerBottomAppBar extends ConsumerWidget {
+class ViewerBottomAppBar extends StatelessWidget {
   const ViewerBottomAppBar({super.key});
+
+  @override
+  Widget build(BuildContext context) => const ViewerControlsVisibility(child: ViewerBottomBar());
+}
+
+class ViewerControlsVisibility extends ConsumerWidget {
+  const ViewerControlsVisibility({super.key, required this.child});
+
+  final Widget child;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -14,7 +23,7 @@ class ViewerBottomAppBar extends ConsumerWidget {
 
     return IgnorePointer(
       ignoring: opacity < 1.0,
-      child: AnimatedOpacity(opacity: opacity, duration: Durations.short2, child: const ViewerBottomBar()),
+      child: AnimatedOpacity(opacity: opacity, duration: Durations.short2, child: child),
     );
   }
 }

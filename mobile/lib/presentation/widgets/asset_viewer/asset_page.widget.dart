@@ -298,7 +298,10 @@ class _AssetPageState extends ConsumerState<AssetPage> {
       ref.read(isPlayingMotionVideoProvider.notifier).playing = true;
 
   void _onScaleStateChanged(PhotoViewScaleState scaleState) {
-    _isZoomed = scaleState == PhotoViewScaleState.zoomedIn || scaleState == PhotoViewScaleState.covering;
+    _isZoomed =
+        scaleState == PhotoViewScaleState.zoomedIn ||
+        scaleState == PhotoViewScaleState.covering ||
+        scaleState == PhotoViewScaleState.videoZoom;
     _viewer.setZoomed(_isZoomed);
 
     if (scaleState != PhotoViewScaleState.initial) {
@@ -398,11 +401,13 @@ class _AssetPageState extends ConsumerState<AssetPage> {
     }
 
     return VideoHoldGesture(
+      key: ValueKey(asset.id),
       assetId: asset.id,
       enabled: isCurrent && !asset.isMotionPhoto,
       onSingleTap: (details) => _handleTap(context, details.globalPosition),
-      child: PhotoView.customChild(
+      builder: (zoom) => PhotoView.customChild(
         key: Key(asset.heroTag),
+        scaleStateController: zoom,
         childSize: asset.width != null && asset.height != null
             ? Size(asset.width!.toDouble(), asset.height!.toDouble())
             : null,

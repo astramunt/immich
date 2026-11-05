@@ -2001,7 +2001,7 @@
   "setting_notifications_notify_minutes": "{count} minutos",
   "setting_notifications_notify_seconds": "{count} segundos",
   "setting_notifications_subtitle": "Ajusta tus preferencias de notificación",
-  "setting_video_double_tap_seek_subtitle": "Toca dos veces el margen izquierdo o derecho para retroceder o avanzar.",
+  "setting_video_double_tap_seek_subtitle": "Toca dos veces arriba a la izquierda o abajo a la derecha para avanzar. Para retroceder, toca dos veces abajo a la izquierda o arriba a la derecha.",
   "setting_video_double_tap_seek_title": "Salto al tocar dos veces un video",
   "setting_video_hold_speed_subtitle": "Durante la reproducción, mantén pulsado cualquier lado para adelantar. Suelta para continuar a velocidad normal.",
   "setting_video_hold_speed_title": "Velocidad al mantener pulsado un video",

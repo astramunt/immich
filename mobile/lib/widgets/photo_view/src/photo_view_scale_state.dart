@@ -2,6 +2,7 @@
 enum PhotoViewScaleState {
   initial,
   covering,
+  videoZoom,
   originalSize,
   zoomedIn,
   zoomedOut;

@@ -17,6 +17,7 @@ import 'package:immich_mobile/presentation/widgets/action_buttons/download_statu
 import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_page.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_preloader.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_stack.provider.dart';
+import 'package:immich_mobile/presentation/widgets/asset_viewer/video_side_seek_bars.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/viewer_bottom_app_bar.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/viewer_top_app_bar.widget.dart';
 import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart';
@@ -321,6 +322,7 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
                 ),
               ),
             ),
+            const Positioned.fill(child: VideoSideSeekBars()),
             if (!CurrentPlatform.isIOS)
               IgnorePointer(
                 child: AnimatedContainer(

@@ -66,26 +66,12 @@ class _VideoControlsState extends ConsumerState<VideoControls> {
     ref.read(_provider.notifier).toggle();
   }
 
-  void _onSeek(bool isCasting, double value) {
-    final seekTo = Duration(microseconds: value.toInt());
-
-    if (isCasting) {
-      ref.read(castProvider.notifier).seekTo(seekTo);
-      return;
-    }
-
-    ref.read(_provider.notifier).seekTo(seekTo);
-  }
-
   @override
   Widget build(BuildContext context) {
     final cast = ref.watch(castProvider);
     final isCasting = cast.isCasting;
 
-    final (position, duration) = isCasting
-        ? ref.watch(castProvider.select((c) => (c.currentTime, c.duration)))
-        : ref.watch(_provider.select((v) => (v.position, v.duration)));
-
+    final progress = ref.watch(_videoProgressProvider(widget.videoPlayerName));
     final videoStatus = ref.watch(_provider.select((v) => v.status));
     final isPlaying = isCasting
         ? cast.castState == CastState.playing
@@ -98,9 +84,6 @@ class _VideoControlsState extends ConsumerState<VideoControls> {
       }
     });
     ref.listen(_provider.select((v) => v.status), (_, _) => _hideTimer.reset());
-
-    final notifier = ref.watch(_provider.notifier);
-    final isLoaded = duration != Duration.zero;
 
     return Padding(
       padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
@@ -125,7 +108,7 @@ class _VideoControlsState extends ConsumerState<VideoControls> {
               const Spacer(),
               IgnorePointer(
                 child: Text(
-                  "${position.format()} / ${duration.format()}",
+                  "${progress.position.format()} / ${progress.duration.format()}",
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w500,
@@ -137,20 +120,51 @@ class _VideoControlsState extends ConsumerState<VideoControls> {
               const SizedBox(width: 12),
             ],
           ),
-          Slider(
-            value: min(position.inMicroseconds.toDouble(), duration.inMicroseconds.toDouble()),
-            min: 0,
-            max: max(duration.inMicroseconds.toDouble(), 1),
-            thumbColor: Colors.white,
-            activeColor: Colors.white,
-            inactiveColor: whiteOpacity75,
-            padding: EdgeInsets.zero,
-            onChangeStart: (_) => notifier.hold(),
-            onChangeEnd: (_) => notifier.release(),
-            onChanged: isLoaded ? (value) => _onSeek(isCasting, value) : null,
-          ),
+          VideoSeekBar(videoPlayerName: widget.videoPlayerName),
         ],
       ),
+    );
+  }
+}
+
+final _videoProgressProvider = Provider.autoDispose
+    .family<({Duration position, Duration duration, bool casting}), String>((ref, name) {
+      final casting = ref.watch(castProvider.select((c) => c.isCasting));
+      final (position, duration) = casting
+          ? ref.watch(castProvider.select((c) => (c.currentTime, c.duration)))
+          : ref.watch(videoPlayerProvider(name).select((v) => (v.position, v.duration)));
+      return (position: position, duration: duration, casting: casting);
+    });
+
+class VideoSeekBar extends ConsumerWidget {
+  const VideoSeekBar({super.key, required this.videoPlayerName});
+
+  final String videoPlayerName;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = ref.watch(_videoProgressProvider(videoPlayerName));
+    final notifier = ref.watch(videoPlayerProvider(videoPlayerName).notifier);
+    final duration = progress.duration.inMicroseconds.toDouble();
+    return Slider(
+      value: min(progress.position.inMicroseconds.toDouble(), duration),
+      max: max(duration, 1),
+      thumbColor: Colors.white,
+      activeColor: Colors.white,
+      inactiveColor: whiteOpacity75,
+      padding: EdgeInsets.zero,
+      onChangeStart: (_) => notifier.hold(),
+      onChangeEnd: (_) => notifier.release(),
+      onChanged: duration == 0
+          ? null
+          : (value) {
+              final position = Duration(microseconds: value.toInt());
+              if (progress.casting) {
+                ref.read(castProvider.notifier).seekTo(position);
+              } else {
+                notifier.seekTo(position);
+              }
+            },
     );
   }
 }
