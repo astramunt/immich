@@ -629,7 +629,7 @@ class _AlbumList extends ConsumerWidget {
                 direction: DismissDirection.endToStart,
                 confirmDismiss: (direction) async {
                   final action = await showAlbumDeleteDialog(context, [album]);
-                  if (action == null) {
+                  if (!context.mounted || action == null) {
                     return false;
                   }
                   try {

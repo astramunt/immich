@@ -125,7 +125,7 @@ class _VideoHoldGestureState extends ConsumerState<VideoHoldGesture> {
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.94),
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius: const BorderRadius.all(Radius.circular(24)),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

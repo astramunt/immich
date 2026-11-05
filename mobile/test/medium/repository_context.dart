@@ -317,6 +317,7 @@ class MediumRepositoryContext {
     TrashOrigin? source,
     AssetType? type,
     DateTime? createdAt,
+    DateTime? updatedAt,
     bool? isFavorite,
   }) async {
     id ??= TestUtils.uuid();
@@ -332,6 +333,7 @@ class MediumRepositoryContext {
             source: .new(source ?? TrashOrigin.remoteSync),
             isFavorite: .new(isFavorite ?? false),
             createdAt: .new(TestUtils.date(createdAt)),
+            updatedAt: .new(TestUtils.date(updatedAt)),
           ),
         );
   }
@@ -368,6 +370,7 @@ class MediumRepositoryContext {
     String? ownerId,
     MemoryTypeEnum? type,
     int? year,
+    String? personName,
     DateTime? memoryAt,
     DateTime? showAt,
     DateTime? hideAt,
@@ -382,7 +385,7 @@ class MediumRepositoryContext {
             id: .new(id),
             ownerId: .new(TestUtils.uuid(ownerId)),
             type: .new(type ?? MemoryTypeEnum.onThisDay),
-            data: .new(MemoryData(year: year ?? 2020).toJson()),
+            data: .new(MemoryData(year: year ?? 2020, personName: personName).toJson()),
             isSaved: .new(isSaved ?? false),
             memoryAt: .new(TestUtils.date(memoryAt)),
             showAt: .new(showAt),
