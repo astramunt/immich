@@ -82,6 +82,7 @@ abstract class AppConfig with _$AppConfig {
             .backupUseCellularForPhotos => backup.useCellularForPhotos,
             .backupRequireCharging => backup.requireCharging,
             .backupTriggerDelay => backup.triggerDelay,
+            .backupTrashAfterManualPhotoUpload => backup.trashAfterManualPhotoUpload,
             .backupSyncAlbums => backup.syncAlbums,
             .timelineTilesPerRow => timeline.tilesPerRow,
             .timelineGroupAssetsBy => timeline.groupAssetsBy,
@@ -149,6 +150,9 @@ abstract class AppConfig with _$AppConfig {
       .backupUseCellularForPhotos => copyWith(backup: backup.copyWith(useCellularForPhotos: value as bool)),
       .backupRequireCharging => copyWith(backup: backup.copyWith(requireCharging: value as bool)),
       .backupTriggerDelay => copyWith(backup: backup.copyWith(triggerDelay: value as int)),
+      .backupTrashAfterManualPhotoUpload => copyWith(
+        backup: backup.copyWith(trashAfterManualPhotoUpload: value as bool),
+      ),
       .backupSyncAlbums => copyWith(backup: backup.copyWith(syncAlbums: value as bool)),
       .timelineTilesPerRow => copyWith(timeline: timeline.copyWith(tilesPerRow: value as int)),
       .timelineGroupAssetsBy => copyWith(timeline: timeline.copyWith(groupAssetsBy: value as GroupAssetsBy)),

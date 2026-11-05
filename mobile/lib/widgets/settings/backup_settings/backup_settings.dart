@@ -26,6 +26,15 @@ class BackupSettings extends StatelessWidget {
         SettingGroupTitle(title: context.t.network_requirements, icon: Icons.cell_tower),
         const _UseCellularForVideosButton(),
         const _UseCellularForPhotosButton(),
+        const Divider(),
+        _BackupSwitchTile(
+          metadataKey: SettingsKey.backupTrashAfterManualPhotoUpload,
+          selector: (config) => config.backup.trashAfterManualPhotoUpload,
+          title: context.t.manual_photo_upload_trash_title,
+          subtitle: CurrentPlatform.isIOS
+              ? context.t.manual_photo_upload_trash_ios
+              : context.t.manual_photo_upload_trash_android,
+        ),
         if (CurrentPlatform.isAndroid) ...[
           const Divider(),
           SettingGroupTitle(title: context.t.background_options, icon: Icons.charging_station_rounded),

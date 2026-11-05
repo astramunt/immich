@@ -19,9 +19,13 @@ import 'package:immich_mobile/platform/connectivity_api.g.dart';
 import 'package:immich_mobile/providers/infrastructure/asset.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/db.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/platform.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/storage.provider.dart';
+import 'package:immich_mobile/repositories/asset_api.repository.dart';
 import 'package:immich_mobile/repositories/asset_media.repository.dart';
 import 'package:immich_mobile/repositories/upload.repository.dart';
+import 'package:immich_mobile/services/cleanup.service.dart';
+import 'package:immich_mobile/services/manual_photo_cleanup.service.dart';
 import 'package:logging/logging.dart';
 import 'package:openapi/api.dart';
 import 'package:path/path.dart' as p;
@@ -34,7 +38,16 @@ class UploadCallbacks {
   final void Function(String id, String errorMessage)? onError;
   final void Function(String id, double progress)? onICloudProgress;
 
-  const UploadCallbacks({this.onProgress, this.onSuccess, this.onError, this.onICloudProgress});
+  /// When importing into an album, wait for the album operations and keep only completed imports.
+  final Future<Set<String>> Function()? completedImportIds;
+
+  const UploadCallbacks({
+    this.onProgress,
+    this.onSuccess,
+    this.onError,
+    this.onICloudProgress,
+    this.completedImportIds,
+  });
 }
 
 final foregroundUploadServiceProvider = Provider((ref) {
@@ -46,6 +59,12 @@ final foregroundUploadServiceProvider = Provider((ref) {
     ref.watch(connectivityApiProvider),
     ref.watch(assetMediaRepositoryProvider),
     ref.watch(assetServiceProvider),
+    ManualPhotoCleanupService(
+      ref.watch(settingsProvider),
+      ref.watch(assetApiRepositoryProvider),
+      ref.watch(nativeSyncApiProvider),
+      ref.watch(cleanupServiceProvider),
+    ),
   );
 });
 
@@ -62,6 +81,7 @@ class ForegroundUploadService {
     this._connectivityApi,
     this._assetMediaRepository,
     this._assetService,
+    this._manualPhotoCleanup,
   );
 
   final UploadRepository _uploadRepository;
@@ -70,6 +90,7 @@ class ForegroundUploadService {
   final ConnectivityApi _connectivityApi;
   final AssetMediaRepository _assetMediaRepository;
   final AssetService _assetService;
+  final ManualPhotoCleanupService _manualPhotoCleanup;
   final Logger _logger = Logger('ForegroundUploadService');
 
   bool shouldAbortUpload = false;
@@ -148,11 +169,37 @@ class ForegroundUploadService {
       return;
     }
 
+    final session = _manualPhotoCleanup.activeSession;
+    final successful = <String, String>{};
+    final failed = <String>{};
+    final trackedCallbacks = session == null
+        ? callbacks
+        : UploadCallbacks(
+            onProgress: callbacks.onProgress,
+            onICloudProgress: callbacks.onICloudProgress,
+            onError: (id, error) {
+              failed.add(id);
+              callbacks.onError?.call(id, error);
+            },
+            onSuccess: (id, remoteId) {
+              successful[id] = remoteId;
+              callbacks.onSuccess?.call(id, remoteId);
+            },
+          );
     await _executeWithWorkerPool<LocalAsset>(
       items: localAssets,
       cancelToken: cancelToken,
-      processItem: (asset) => uploadSingleAsset(asset, cancelToken, callbacks: callbacks),
+      processItem: (asset) => uploadSingleAsset(asset, cancelToken, callbacks: trackedCallbacks),
     );
+    if (session != null && successful.isNotEmpty && cancelToken?.isCompleted != true) {
+      try {
+        final imported = await callbacks.completedImportIds?.call();
+        successful.removeWhere((id, _) => failed.contains(id) || (imported != null && !imported.contains(id)));
+        await _manualPhotoCleanup.removeVerified(session, localAssets, successful, cancelToken);
+      } catch (error, stack) {
+        _logger.warning('Could not finish removing local copies after manual upload', error, stack);
+      }
+    }
   }
 
   /// Upload files from shared intent

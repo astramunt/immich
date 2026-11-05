@@ -75,7 +75,7 @@ class _FreeUpSpaceSettingsState extends ConsumerState<FreeUpSpaceSettings> {
 
   void _setPresetDate(int daysAgo) {
     ref.read(hapticFeedbackProvider.notifier).mediumImpact();
-    final date = DateTime.now().subtract(Duration(days: daysAgo));
+    final date = CleanupNotifier.dateDaysAgo(daysAgo);
     ref.read(cleanupProvider.notifier).setSelectedDate(date);
     setState(() => _hasScanned = false);
   }
@@ -86,7 +86,7 @@ class _FreeUpSpaceSettingsState extends ConsumerState<FreeUpSpaceSettings> {
       return false;
     }
 
-    final expectedDate = daysAgo != null ? DateTime.now().subtract(Duration(days: daysAgo)) : DateTime(2000);
+    final expectedDate = daysAgo != null ? CleanupNotifier.dateDaysAgo(daysAgo) : DateTime(2000);
 
     // Check if dates match (ignoring time component)
     return state.selectedDate!.year == expectedDate.year &&

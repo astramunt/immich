@@ -21,6 +21,10 @@ The current upstream baseline is the stable Immich **v3.3.6** release
   accept exact logical pixels (dp), including decimals. Empty values restore
   defaults. Enable the UI edit mode to preview sizes and outline active targets
   over the playing video.
+- Free Up Space includes the full selected calendar day in the device's time zone.
+- Backup settings can optionally request device trash after manual in-app photo and video uploads.
+  Verify the current account's active remote original and the complete local original, including
+  paired Live Photo video, before requesting removal. Automatic backups and shares use separate paths.
 - Album selection by long press and drag, bulk album deletion, and optional
   trashing of owned album contents without deleting other users' assets.
 - English and Spanish translations and regression tests for these features.

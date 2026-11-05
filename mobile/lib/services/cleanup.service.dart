@@ -33,7 +33,7 @@ class CleanupService {
     );
   }
 
-  Future<int> deleteLocalAssets(List<String> localIds) async {
+  Future<int> deleteLocalAssets(List<String> localIds, {bool Function()? canContinue}) async {
     if (localIds.isEmpty) {
       return 0;
     }
@@ -41,6 +41,9 @@ class CleanupService {
     int deletedCount = 0;
 
     for (int index = 0; index < localIds.length; index += _deleteBatchSize) {
+      if (canContinue != null && !canContinue()) {
+        break;
+      }
       final end = index + _deleteBatchSize < localIds.length ? index + _deleteBatchSize : localIds.length;
       final batch = localIds.sublist(index, end);
 
@@ -48,6 +51,9 @@ class CleanupService {
       if (deletedIds.isNotEmpty) {
         await _localAssetRepository.deleteAssets(deletedIds);
         deletedCount += deletedIds.length;
+      } else if (canContinue != null) {
+        // A dismissed automatic request should not prompt again for the next batch.
+        break;
       }
     }
 

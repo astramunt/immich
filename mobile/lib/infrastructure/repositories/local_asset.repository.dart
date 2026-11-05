@@ -179,8 +179,10 @@ class LocalAssetRepository extends DatabaseAccessor<Drift> with $LocalAssetRepos
       leftOuterJoin(_db.remoteExifEntity, _db.remoteAssetEntity.id.equalsExp(_db.remoteExifEntity.assetId)),
     ]);
 
+    final day = cutoffDate.toLocal();
+    final nextMidnight = DateTime(day.year, day.month, day.day + 1);
     Expression<bool> whereClause =
-        _db.localAssetEntity.createdAt.isSmallerOrEqualValue(cutoffDate) &
+        _db.localAssetEntity.createdAt.isSmallerThanValue(nextMidnight) &
         _db.remoteAssetEntity.ownerId.equals(userId) &
         _db.remoteAssetEntity.deletedAt.isNull();
 

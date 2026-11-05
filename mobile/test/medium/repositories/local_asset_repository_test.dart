@@ -258,6 +258,20 @@ void main() {
       expect(result.assets.first.id, localAsset.id);
     });
 
+    test('includes the whole selected local day and excludes the next midnight and unbacked photos', () async {
+      final remote = await ctx.newRemoteAsset(ownerId: userId);
+      final last = await ctx.newLocalAsset(
+        checksum: remote.checksum,
+        createdAt: DateTime(2024, 1, 31, 23, 59, 59, 999).toUtc(),
+      );
+      await ctx.newLocalAsset(checksum: remote.checksum, createdAt: DateTime(2024, 2, 1).toUtc());
+      await ctx.newLocalAsset(checksumOption: const Option.none(), createdAt: DateTime(2024, 1, 31, 12));
+      for (final hour in [0, 14]) {
+        final result = await sut.getRemovalCandidates(userId, DateTime(2024, 1, 31, hour));
+        expect(result.assets.map((asset) => asset.id), [last.id]);
+      }
+    });
+
     test('returns empty list when no assets match criteria', () async {
       // Only assets after cutoff
       final remoteAsset = await ctx.newRemoteAsset(ownerId: userId);

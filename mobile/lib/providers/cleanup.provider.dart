@@ -42,13 +42,18 @@ class CleanupNotifier extends StateNotifier<CleanupState> {
     _loadPersistedSettings();
   }
 
+  static DateTime dateDaysAgo(int days) {
+    final today = DateTime.now();
+    return DateTime(today.year, today.month, today.day - days);
+  }
+
   void _loadPersistedSettings() {
     final cleanup = _settingsRepository.appConfig.cleanup;
     final keepFavorites = cleanup.keepFavorites;
     final keepMediaType = cleanup.keepMediaType;
     final keepAlbumIds = cleanup.keepAlbumIds.toSet();
     final cutoffDaysAgo = cleanup.cutoffDaysAgo;
-    final selectedDate = cutoffDaysAgo >= 0 ? DateTime.now().subtract(Duration(days: cutoffDaysAgo)) : null;
+    final selectedDate = cutoffDaysAgo >= 0 ? dateDaysAgo(cutoffDaysAgo) : null;
 
     state = state.copyWith(
       keepFavorites: keepFavorites,
@@ -61,7 +66,13 @@ class CleanupNotifier extends StateNotifier<CleanupState> {
   void setSelectedDate(DateTime? date) {
     state = state.copyWith(selectedDate: date, assetsToDelete: []);
     if (date != null) {
-      final daysAgo = DateTime.now().difference(date).inDays;
+      final today = DateTime.now();
+      // Count calendar dates across daylight-saving transitions.
+      final daysAgo = DateTime.utc(
+        today.year,
+        today.month,
+        today.day,
+      ).difference(DateTime.utc(date.year, date.month, date.day)).inDays;
       unawaited(_settingsRepository.write(.cleanupCutoffDaysAgo, daysAgo));
     }
   }

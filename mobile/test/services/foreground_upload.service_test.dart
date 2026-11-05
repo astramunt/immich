@@ -12,6 +12,7 @@ import 'package:immich_mobile/infrastructure/repositories/settings.repository.da
 import 'package:immich_mobile/infrastructure/repositories/store.repository.dart';
 import 'package:immich_mobile/repositories/upload.repository.dart';
 import 'package:immich_mobile/services/foreground_upload.service.dart';
+import 'package:immich_mobile/services/manual_photo_cleanup.service.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../api.mocks.dart';
@@ -21,6 +22,8 @@ import '../mocks/asset_entity.mock.dart';
 import '../repository.mocks.dart';
 import '../service.mocks.dart';
 
+class MockManualPhotoCleanupService extends Mock implements ManualPhotoCleanupService {}
+
 void main() {
   late ForegroundUploadService sut;
   late MockUploadRepository mockUploadRepository;
@@ -29,6 +32,7 @@ void main() {
   late MockConnectivityApi mockConnectivityApi;
   late MockAssetMediaRepository mockAssetMediaRepository;
   late MockAssetService mockAssetService;
+  late MockManualPhotoCleanupService cleanup;
   late Drift db;
 
   setUpAll(() async {
@@ -58,6 +62,7 @@ void main() {
     when(() => mockAssetService.getLocalAsset(any())).thenAnswer((_) async => null);
     when(() => mockAssetService.stackEditedUpload(any(), any(), any())).thenAnswer((_) async {});
 
+    cleanup = MockManualPhotoCleanupService();
     sut = ForegroundUploadService(
       mockUploadRepository,
       mockStorageRepository,
@@ -65,6 +70,7 @@ void main() {
       mockConnectivityApi,
       mockAssetMediaRepository,
       mockAssetService,
+      cleanup,
     );
   });
 
@@ -104,6 +110,26 @@ void main() {
     });
     return captured;
   }
+
+  test('manual upload hands off only completed imports and only while opted in', () async {
+    const session = (userId: 'user', endpoint: 'server');
+    final photos = [LocalAssetStub.image1, LocalAssetStub.image2];
+    when(mockStorageRepository.clearCache).thenAnswer((_) async {});
+    for (final photo in photos) {
+      when(
+        () => mockAssetService.getLocalAsset(photo.id),
+      ).thenAnswer((_) async => photo.copyWith(remoteId: 'remote-${photo.id}'));
+    }
+    await sut.uploadManual(photos);
+    verify(() => cleanup.activeSession).called(1);
+    verifyNoMoreInteractions(cleanup);
+
+    when(() => cleanup.activeSession).thenReturn(session);
+    when(() => cleanup.removeVerified(session, photos, any(), null)).thenAnswer((_) async {});
+    await sut.uploadManual(photos, callbacks: UploadCallbacks(completedImportIds: () async => {photos.first.id}));
+    final candidates = verify(() => cleanup.removeVerified(session, photos, captureAny(), null)).captured.single;
+    expect(candidates, {photos.first.id: 'remote-${photos.first.id}'});
+  });
 
   group('uploadSingleAsset', () {
     test('should upload the motion part hidden and keep the still image visible', () async {

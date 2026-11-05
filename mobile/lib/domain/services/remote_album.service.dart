@@ -216,10 +216,15 @@ class RemoteAlbumService {
     Completer<void>? cancelToken,
   ) async {
     int addedCount = 0;
+    final linkedIds = <String>{};
     final pendingAdds = <Future<void>>[];
     final localById = {for (final a in localAssets) a.id: a};
 
     final wrappedCallbacks = UploadCallbacks(
+      completedImportIds: () async {
+        await Future.wait(pendingAdds);
+        return linkedIds;
+      },
       onProgress: (localId, filename, bytes, totalBytes) => _runUploadCallback(
         'Upload progress callback failed for $localId',
         () => userCallbacks.onProgress?.call(localId, filename, bytes, totalBytes),
@@ -246,6 +251,9 @@ class RemoteAlbumService {
           linkUploadedAssetToAlbum(albumId, remoteId, uploader, source)
               .then<void>((added) {
                 addedCount += added;
+                if (added > 0) {
+                  linkedIds.add(localId);
+                }
               })
               .catchError((Object error, StackTrace stack) {
                 _logger.warning('Failed to add uploaded asset $remoteId to album $albumId', error, stack);

@@ -195,6 +195,10 @@ class ActionNotifier extends Notifier<void> {
         assetsToUpload,
         cancelToken: cancelToken,
         callbacks: UploadCallbacks(
+          completedImportIds: () async {
+            await Future.wait(postUploadTasks);
+            return uploadedAssetIds.difference(failedAssetIds);
+          },
           onProgress: (localAssetId, filename, bytes, totalBytes) {
             final progress = totalBytes > 0 ? bytes / totalBytes : 0.0;
             progressNotifier.setProgress(localAssetId, progress);

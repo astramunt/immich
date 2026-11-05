@@ -382,23 +382,45 @@ class NativeSyncApiImpl: ImmichPlugin, NativeSyncApi, FlutterPlugin {
   }
   
   private func hashAsset(_ asset: PHAsset, allowNetworkAccess: Bool) async -> HashResult? {
+    guard let resource = asset.getResource() else {
+      return HashResult(assetId: asset.localIdentifier, error: "Cannot get asset resource", hash: nil)
+    }
+    return await hashResource(resource, assetId: asset.localIdentifier, allowNetworkAccess: allowNetworkAccess)
+  }
+
+  func matchesUploadedMedia(assetId: String, isVideo: Bool, checksum: String, motionChecksum: String?,
+                            completion: @escaping (Result<Bool, Error>) -> Void) {
+    Task {
+      let matches = await verifyMedia(assetId: assetId, isVideo: isVideo, checksum: checksum, motionChecksum: motionChecksum)
+      completeWhenActive(for: completion, with: .success(matches))
+    }
+  }
+
+  private func verifyMedia(assetId: String, isVideo: Bool, checksum: String, motionChecksum: String?) async -> Bool {
+    guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetId], options: nil).firstObject,
+          asset.mediaType == (isVideo ? .video : .image), asset.canPerform(.delete), !asset.sourceType.contains(.typeCloudShared)
+    else { return false }
+
+    // Edits, alternate originals and other resources must not be discarded just because the still matches.
+    let resources = PHAssetResource.assetResources(for: asset)
+    let isLive = !isVideo && asset.mediaSubtypes.contains(.photoLive)
+    guard resources.count == (isLive ? 2 : 1), isLive == (motionChecksum != nil),
+          let original = resources.first(where: { $0.type == (isVideo ? .video : .photo) }),
+          await hashResource(original, assetId: assetId, allowNetworkAccess: true)?.hash == checksum
+    else { return false }
+
+    guard let motionChecksum else { return true }
+    guard let motion = resources.first(where: { $0.type == .pairedVideo }) else { return false }
+    return await hashResource(motion, assetId: assetId, allowNetworkAccess: true)?.hash == motionChecksum
+  }
+
+  private func hashResource(_ resource: PHAssetResource, assetId: String, allowNetworkAccess: Bool) async -> HashResult? {
     class RequestRef {
       var id: PHAssetResourceDataRequestID?
     }
     let requestRef = RequestRef()
     return await withTaskCancellationHandler(operation: {
-      if Task.isCancelled {
-        return nil
-      }
-      
-      guard let resource = asset.getResource() else {
-        return HashResult(assetId: asset.localIdentifier, error: "Cannot get asset resource", hash: nil)
-      }
-      
-      if Task.isCancelled {
-        return nil
-      }
-      
+      if Task.isCancelled { return nil }
       let options = PHAssetResourceRequestOptions()
       options.isNetworkAccessAllowed = allowNetworkAccess
       
@@ -415,13 +437,13 @@ class NativeSyncApiImpl: ImmichPlugin, NativeSyncApi, FlutterPlugin {
             let result: HashResult? = switch (error) {
             case let e as PHPhotosError where e.code == .userCancelled: nil
             case let .some(e): HashResult(
-              assetId: asset.localIdentifier,
+              assetId: assetId,
               error: "Failed to hash asset: \(e.localizedDescription)",
               hash: nil
             )
             case .none:
               HashResult(
-                assetId: asset.localIdentifier,
+                assetId: assetId,
                 error: nil,
                 hash: Data(hasher.finalize()).base64EncodedString()
               )

@@ -444,6 +444,17 @@ open class NativeSyncApiImplBase(context: Context) : ImmichPlugin(), ActivityAwa
     }
   }
 
+  fun matchesUploadedMedia(assetId: String, isVideo: Boolean, checksum: String, motionChecksum: String?, callback: (Result<Boolean>) -> Unit) {
+    CoroutineScope(Dispatchers.IO).launch {
+      val result = runCatching {
+        val expectedType = if (isVideo) MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO else MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && motionChecksum == null &&
+          getMediaType(assetId.toLong()) == expectedType && hashAsset(assetId).hash == checksum
+      }
+      completeWhenActive(callback, result)
+    }
+  }
+
   private suspend fun hashAsset(assetId: String): HashResult {
     return try {
       val digest = MessageDigest.getInstance("SHA-1")

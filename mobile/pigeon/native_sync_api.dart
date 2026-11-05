@@ -144,6 +144,10 @@ abstract class NativeSyncApi {
   @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   List<HashResult> hashAssets(List<String> assetIds, {bool allowNetworkAccess = false});
 
+  /// Verify the complete gallery original, including the paired video of a Live Photo.
+  @async
+  bool matchesUploadedMedia(String assetId, bool isVideo, String checksum, String? motionChecksum);
+
   void cancelHashing();
 
   void cancelSync();

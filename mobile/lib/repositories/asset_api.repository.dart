@@ -66,6 +66,41 @@ class AssetApiRepository extends ApiRepository {
     return response.originalMimeType.orElse(null);
   }
 
+  Future<({String original, String? motion})?> getUploadedMediaChecksums(
+    String id,
+    String ownerId, {
+    required bool isVideo,
+  }) async {
+    final asset = await _api.getAssetInfo(id);
+    if (asset == null ||
+        asset.id != id ||
+        asset.ownerId != ownerId ||
+        asset.isTrashed ||
+        asset.isOffline ||
+        asset.type != (isVideo ? AssetTypeEnum.VIDEO : AssetTypeEnum.IMAGE) ||
+        asset.checksum.isEmpty) {
+      return null;
+    }
+    final motionId = asset.livePhotoVideoId.orElse(null);
+    if (motionId == null) {
+      return (original: asset.checksum, motion: null);
+    }
+    if (isVideo) {
+      return null;
+    }
+    final motion = await _api.getAssetInfo(motionId);
+    if (motion == null ||
+        motion.id != motionId ||
+        motion.ownerId != ownerId ||
+        motion.isTrashed ||
+        motion.isOffline ||
+        motion.type != AssetTypeEnum.VIDEO ||
+        motion.checksum.isEmpty) {
+      return null;
+    }
+    return (original: asset.checksum, motion: motion.checksum);
+  }
+
   Future<String> getChecksum(String id) async {
     return (await checkNull(_api.getAssetInfo(id))).checksum;
   }
