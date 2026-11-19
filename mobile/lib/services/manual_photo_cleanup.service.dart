@@ -19,7 +19,7 @@ class ManualPhotoCleanupService {
   final CleanupService _cleanup;
   static final _log = Logger('ManualPhotoCleanupService');
 
-  ManualPhotoCleanupService(this._settings, this._assets, this._native, this._cleanup);
+  const ManualPhotoCleanupService(this._settings, this._assets, this._native, this._cleanup);
 
   ManualUploadSession? get activeSession {
     if (!_settings.appConfig.backup.trashAfterManualPhotoUpload) {

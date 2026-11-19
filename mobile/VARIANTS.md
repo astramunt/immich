@@ -26,3 +26,8 @@ three installations do not share their local extension data.
 
 The variants have distinct bundle identifiers. Register their App IDs and App
 Groups in the Apple Developer account before producing a signed device build.
+
+Immich's native passkey flow uses the official `my.immich.app` app association
+and accepts the official Android signing fingerprints. Browser passkeys use
+the server's web origin. Native passkeys for private variants require their
+own app association and matching server configuration.

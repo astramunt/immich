@@ -1,7 +1,7 @@
 # Maintaining the custom Immich fork
 
-The current upstream baseline is the stable Immich **v3.3.6** release
-(`587f549f46f1cd1822a06e16dcccecef04ea4565`). `origin` is the
+The current upstream baseline is the stable Immich **v3.4.2** release
+(`b6b4b80df113656bfa4872cab31c7319e89438a9`). `origin` is the
 `astramunt/immich` fork; `upstream` is `https://github.com/immich-app/immich.git`.
 
 ## Custom behavior to preserve
@@ -29,9 +29,10 @@ The current upstream baseline is the stable Immich **v3.3.6** release
   trashing of owned album contents without deleting other users' assets.
 - English and Spanish translations and regression tests for these features.
 
-The v3.3.6 integration combines the custom video gesture wrapper with upstream's
-20× maximum zoom and motion-photo dismissal fixes. It also retains upstream's
-fallback to remote video playback when the local file is unavailable.
+The v3.4.2 integration keeps the custom video gesture wrapper with upstream's
+pixel-based zoom limit, restoration of controls after zoom, and iOS player
+disposal on navigation. It also retains the fallback to remote video playback
+when the local file is unavailable and the motion-photo dismissal fixes.
 
 ## Future updates
 
@@ -41,10 +42,12 @@ its tag into that branch. Keep the upstream ancestry so future merges can
 identify changes already integrated; do not replace the fork with the upstream
 tree or squash away the imported history.
 
-Review both textual conflicts and automatically merged custom files. Regenerate
-the OpenAPI Dart client, Drift migrations/schema helpers, Dart models, Pigeon
-bindings, and translations using the repository's Mise tasks before checking
-the result:
+Review both textual conflicts and automatically merged custom files. Release
+branches can contain equivalent upstream commits with different histories. In
+that case, compare the result with the target release and reconcile the fork's
+changes relative to its last imported tag. Regenerate the OpenAPI Dart client,
+Drift helpers, Dart models, Rust FFI bindings, Pigeon bindings, and translations
+using the repository's Mise tasks before checking the result:
 
 ```bash
 mise //mobile:install:ci
@@ -62,10 +65,12 @@ mobile build; deployment and signed releases are separate operations.
 With the local Xcode 27.2 setup, `flutter build ios --simulator` passes an
 explicit `-sdk iphonesimulator` to Xcode. This builds `StructuredQueriesMacros`
 for the simulator instead of the macOS host and fails with a malformed macro
-response. The `personal` simulator build succeeds by selecting the destination
-directly, without the SDK override. From `mobile/ios/`:
+response. After generating the mobile code, configure the flavor with Flutter
+and select the Xcode destination directly. From `mobile/`:
 
 ```bash
+flutter build ios --config-only --simulator --no-codesign --flavor personal
+cd ios
 xcodebuild -workspace Runner.xcworkspace -scheme personal \
   -configuration Debug-personal \
   -destination 'generic/platform=iOS Simulator' \
