@@ -22,6 +22,7 @@ enum SettingsKey<T> {
   viewerLoopVideo<bool>(),
   viewerLoadOriginalVideo<bool>(),
   viewerAutoPlayVideo<bool>(),
+  viewerShowVideoFrameControls<bool>(),
   viewerHoldSpeed<int>(),
   viewerDoubleTapSeekSeconds<int>(),
   viewerPauseBoxSize<double>(),

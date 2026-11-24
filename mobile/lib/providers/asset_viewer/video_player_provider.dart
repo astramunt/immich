@@ -42,6 +42,8 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
   NativeVideoPlayerController? _controller;
   Timer? _bufferingTimer;
   Timer? _seekTimer;
+  Future<void>? _pendingSeek;
+  Future<bool>? _pendingFrameStep;
   VideoPlaybackStatus? _holdStatus;
   VideoHoldPlayback? _holdPlayback;
 
@@ -110,6 +112,7 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
   }
 
   Future<void> play() async {
+    await _pendingFrameStep;
     await stopHoldPlayback();
     if (_controller == null) {
       return;
@@ -127,12 +130,52 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
 
   Future<void> _flushSeek() async {
     final timer = _seekTimer;
-    if (timer == null || !timer.isActive) {
-      return;
+    if (timer != null && timer.isActive) {
+      timer.cancel();
+      await _seekToNative();
+    } else {
+      await _pendingSeek;
+    }
+  }
+
+  Future<void> _seekToNative() async {
+    try {
+      await _controller?.seekTo(state.position.inMilliseconds);
+    } catch (error, stack) {
+      _log.warning('Error seeking video', error, stack);
+    }
+  }
+
+  Future<bool> stepFrame({required bool forward}) {
+    final controller = _controller;
+    if (controller == null || state.duration == Duration.zero) {
+      return Future.value(true);
     }
 
-    timer.cancel();
-    await _controller?.seekTo(state.position.inMilliseconds);
+    return _pendingFrameStep = _stepFrame(controller, after: _pendingFrameStep, forward: forward);
+  }
+
+  Future<bool> _stepFrame(
+    NativeVideoPlayerController controller, {
+    required Future<bool>? after,
+    required bool forward,
+  }) async {
+    await after;
+    if (!mounted || _controller != controller) {
+      return true;
+    }
+
+    _holdStatus = null;
+    try {
+      await pause();
+      if (!mounted || _controller != controller) {
+        return true;
+      }
+      return await controller.stepFrame(forward: forward);
+    } catch (error, stack) {
+      _log.warning('Error stepping through video', error, stack);
+      return false;
+    }
   }
 
   void seekTo(Duration position) {
@@ -147,7 +190,7 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
     }
 
     _seekTimer = Timer(const Duration(milliseconds: 150), () {
-      unawaited(_controller?.seekTo(state.position.inMilliseconds));
+      _pendingSeek = _seekToNative();
     });
   }
 

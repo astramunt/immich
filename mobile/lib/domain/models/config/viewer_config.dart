@@ -9,6 +9,7 @@ abstract class ViewerConfig with _$ViewerConfig {
     @Default(true) bool loopVideo,
     @Default(false) bool loadOriginalVideo,
     @Default(true) bool autoPlayVideo,
+    @Default(false) bool showVideoFrameControls,
     @Default(2) int holdSpeed,
     @Default(5) int doubleTapSeekSeconds,
     @Default(96.0) double pauseBoxSize,

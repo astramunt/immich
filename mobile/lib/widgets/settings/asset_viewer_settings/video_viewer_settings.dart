@@ -5,6 +5,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/models/config/app_config.dart';
 import 'package:immich_mobile/domain/models/settings_key.dart';
+import 'package:immich_mobile/extensions/platform_extensions.dart';
 import 'package:immich_mobile/generated/translations.g.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/video_zone_frames.widget.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
@@ -45,6 +46,13 @@ class VideoViewerSettings extends HookConsumerWidget {
           title: context.t.setting_video_viewer_looping_title,
           subtitle: context.t.loop_videos_description,
         ),
+        if (CurrentPlatform.isIOS)
+          SwitchListTile(
+            title: Text(context.t.setting_video_frame_controls_title),
+            subtitle: Text(context.t.setting_video_frame_controls_subtitle),
+            value: viewer.showVideoFrameControls,
+            onChanged: (value) => unawaited(ref.read(settingsProvider).write(.viewerShowVideoFrameControls, value)),
+          ),
         _VideoOptionDropdown(
           title: context.t.setting_video_hold_speed_title,
           subtitle: context.t.setting_video_hold_speed_subtitle,

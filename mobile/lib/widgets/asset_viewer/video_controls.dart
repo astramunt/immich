@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/constants/colors.dart';
 import 'package:immich_mobile/extensions/duration_extensions.dart';
+import 'package:immich_mobile/extensions/platform_extensions.dart';
+import 'package:immich_mobile/generated/translations.g.dart';
 import 'package:immich_mobile/models/cast/cast_manager_state.dart';
 import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart';
 import 'package:immich_mobile/providers/asset_viewer/video_player_provider.dart';
 import 'package:immich_mobile/providers/cast.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/widgets/asset_viewer/animated_play_pause.dart';
 
 class VideoControls extends ConsumerStatefulWidget {
@@ -66,12 +69,44 @@ class _VideoControlsState extends ConsumerState<VideoControls> {
     ref.read(_provider.notifier).toggle();
   }
 
+  Future<void> _stepFrame({required bool forward}) async {
+    final playerName = widget.videoPlayerName;
+    final stepped = await ref.read(_provider.notifier).stepFrame(forward: forward);
+    if (!stepped && mounted && playerName == widget.videoPlayerName) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(context.t.video_frame_step_unavailable)));
+    }
+  }
+
+  Widget _frameButtons(BuildContext context, {required bool enabled}) => Row(
+    mainAxisSize: MainAxisSize.min,
+    textDirection: TextDirection.ltr,
+    children: [
+      for (final forward in [false, true])
+        SizedBox.square(
+          dimension: 44,
+          child: IconButton(
+            tooltip: forward ? context.t.video_frame_next : context.t.video_frame_previous,
+            onPressed: enabled ? () => _stepFrame(forward: forward) : null,
+            color: Colors.white,
+            icon: Icon(forward ? Icons.chevron_right : Icons.chevron_left, shadows: VideoControls._controlShadows),
+          ),
+        ),
+    ],
+  );
+
   @override
   Widget build(BuildContext context) {
     final cast = ref.watch(castProvider);
     final isCasting = cast.isCasting;
+    final showFrameControls =
+        CurrentPlatform.isIOS &&
+        !isCasting &&
+        ref.watch(appConfigProvider.select((config) => config.viewer.showVideoFrameControls));
 
     final progress = ref.watch(_videoProgressProvider(widget.videoPlayerName));
+    final canStepFrame = progress.duration > Duration.zero;
     final videoStatus = ref.watch(_provider.select((v) => v.status));
     final isPlaying = isCasting
         ? cast.castState == CastState.playing
@@ -94,7 +129,7 @@ class _VideoControlsState extends ConsumerState<VideoControls> {
             children: [
               IconButton(
                 iconSize: 32,
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(showFrameControls ? 6 : 12),
                 constraints: const BoxConstraints(),
                 icon: isFinished
                     ? const Icon(Icons.replay, color: Colors.white, shadows: VideoControls._controlShadows)
@@ -105,19 +140,32 @@ class _VideoControlsState extends ConsumerState<VideoControls> {
                       ),
                 onPressed: () => _toggle(isCasting),
               ),
-              const Spacer(),
-              IgnorePointer(
-                child: Text(
-                  "${progress.position.format()} / ${progress.duration.format()}",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                    shadows: VideoControls._controlShadows,
-                  ),
+              if (showFrameControls) ...[_frameButtons(context, enabled: canStepFrame), const SizedBox(width: 8)],
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (showFrameControls) _frameButtons(context, enabled: canStepFrame),
+                    Flexible(
+                      child: IgnorePointer(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            "${progress.position.format()} / ${progress.duration.format()}",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                              shadows: VideoControls._controlShadows,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: showFrameControls ? 4 : 12),
             ],
           ),
           VideoSeekBar(videoPlayerName: widget.videoPlayerName),

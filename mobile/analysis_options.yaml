@@ -85,6 +85,8 @@ linter:
 analyzer:
   exclude:
     - generated/openapi/**
+    # This vendored plugin follows its upstream package conventions.
+    - packages/native_video_player/**
     - build/**
     - lib/generated_plugin_registrant.dart
     - lib/**/*.g.dart

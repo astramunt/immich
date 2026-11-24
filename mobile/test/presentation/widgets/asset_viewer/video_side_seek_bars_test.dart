@@ -15,6 +15,7 @@ import 'package:immich_mobile/widgets/asset_viewer/video_controls.dart';
 
 import '../../../service.mocks.dart';
 import '../../../unit/factories/remote_asset_factory.dart';
+import '../../../widget_tester_extensions.dart';
 
 final _video = RemoteAssetFactory.create(type: .video);
 
@@ -26,6 +27,7 @@ class _Viewer extends AssetViewerStateNotifier {
 class _Player extends VideoPlayerNotifier {
   int holds = 0;
   int releases = 0;
+  final frameSteps = <bool>[];
 
   void setLoadedPosition() =>
       state = state.copyWith(duration: const Duration(seconds: 100), position: const Duration(seconds: 25));
@@ -38,9 +40,67 @@ class _Player extends VideoPlayerNotifier {
 
   @override
   void release() => releases++;
+
+  @override
+  Future<bool> stepFrame({required bool forward}) async {
+    frameSteps.add(forward);
+    return true;
+  }
 }
 
 void main() {
+  for (final enabled in [false, true]) {
+    testWidgets('iOS frame controls follow the viewer setting ($enabled)', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(320, 640));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMessageHandler(
+        'dev.flutter.pigeon.wakelock_plus_platform_interface.WakelockPlusApi.toggle',
+        (_) async => const StandardMessageCodec().encodeMessage([null]),
+      );
+      final player = _Player()..setLoadedPosition();
+      await tester.pumpConsumerWidget(
+        Scaffold(body: VideoControls(videoPlayerName: _video.id)),
+        overrides: [
+          appConfigProvider.overrideWithValue(AppConfig(viewer: ViewerConfig(showVideoFrameControls: enabled))),
+          assetViewerProvider.overrideWith(_Viewer.new),
+          videoPlayerProvider(_video.id).overrideWith((_) => player),
+          gCastServiceProvider.overrideWithValue(MockGCastService()),
+        ],
+      );
+      final previous = find.byTooltip('Previous frame');
+      final next = find.byTooltip('Next frame');
+      if (!enabled) {
+        expect(previous, findsNothing);
+        expect(next, findsNothing);
+        return;
+      }
+      expect(previous, findsNWidgets(2));
+      expect(next, findsNWidgets(2));
+      final play = tester.getRect(find.byType(IconButton).first);
+      final timer = tester.getRect(find.text('00:25 / 01:40'));
+      final slider = tester.getRect(find.byType(Slider));
+      final leftBack = tester.getRect(previous.first);
+      final leftForward = tester.getRect(next.first);
+      final rightBack = tester.getRect(previous.last);
+      final rightForward = tester.getRect(next.last);
+
+      expect(leftBack.left, play.right);
+      expect(leftForward.left, leftBack.right);
+      expect(rightBack.left, greaterThan(leftForward.right));
+      expect(rightForward.left, rightBack.right);
+      expect(rightForward.right, timer.left);
+      for (final button in [leftBack, leftForward, rightBack, rightForward]) {
+        expect(button.center.dy, play.center.dy);
+        expect(button.bottom, lessThanOrEqualTo(slider.top));
+      }
+      await tester.tap(previous.first);
+      await tester.tap(next.first);
+      await tester.tap(previous.last);
+      await tester.tap(next.last);
+      expect(player.frameSteps, [false, true, false, true]);
+    }, variant: const TargetPlatformVariant({TargetPlatform.iOS}));
+  }
+
   for (final size in const [Size(390, 844), Size(844, 390)]) {
     testWidgets('both edges track and seek the same timeline at $size', (tester) async {
       await tester.binding.setSurfaceSize(size);
