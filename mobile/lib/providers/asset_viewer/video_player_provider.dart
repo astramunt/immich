@@ -27,6 +27,18 @@ const _defaultState = VideoPlayerState(
   status: VideoPlaybackStatus.paused,
 );
 
+class _VideoScrub {
+  _VideoScrub(this.controller, {required this.resumePlayback});
+
+  final NativeVideoPlayerController controller;
+  bool resumePlayback;
+  late final Future<void> ready;
+  Future<void>? pending;
+  bool finishing = false;
+  bool previewing = false;
+  ({Duration position, bool exact})? next;
+}
+
 final videoPlayerProvider = StateNotifierProvider.autoDispose.family<VideoPlayerNotifier, VideoPlayerState, String>((
   ref,
   name,
@@ -44,6 +56,7 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
   Timer? _seekTimer;
   Future<void>? _pendingSeek;
   Future<bool>? _pendingFrameStep;
+  _VideoScrub? _scrub;
   VideoPlaybackStatus? _holdStatus;
   VideoHoldPlayback? _holdPlayback;
 
@@ -52,6 +65,7 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
     _holdPlayback?.dispose();
     _bufferingTimer?.cancel();
     _seekTimer?.cancel();
+    _scrub = null;
     unawaited(WakelockPlus.disable());
     _controller = null;
 
@@ -60,6 +74,7 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
 
   void attachController(NativeVideoPlayerController controller) {
     _holdPlayback?.dispose();
+    _scrub = null;
     _controller = controller;
     _holdPlayback = VideoHoldPlayback(
       controller,
@@ -76,7 +91,8 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
   Future<void> startHoldPlayback({required int speed}) async {
     if (state.duration == Duration.zero ||
         state.status != VideoPlaybackStatus.playing ||
-        (_seekTimer?.isActive ?? false)) {
+        (_seekTimer?.isActive ?? false) ||
+        _scrub != null) {
       return;
     }
     await _holdPlayback?.start(speed: speed);
@@ -96,6 +112,7 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
   }
 
   Future<void> pause() async {
+    _scrub?.resumePlayback = false;
     await stopHoldPlayback();
     if (_controller == null) {
       return;
@@ -112,9 +129,16 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
   }
 
   Future<void> play() async {
+    final scrub = _scrub;
+    if (scrub != null) {
+      if (!scrub.finishing) {
+        return;
+      }
+      await scrub.pending;
+    }
     await _pendingFrameStep;
     await stopHoldPlayback();
-    if (_controller == null) {
+    if (_controller == null || _scrub != null) {
       return;
     }
 
@@ -146,22 +170,129 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
     }
   }
 
+  void beginScrub() {
+    final controller = _controller;
+    final previous = _scrub;
+    if (controller == null || state.duration <= Duration.zero || previous?.finishing == false) {
+      return;
+    }
+
+    final wasPlaying = state.status == VideoPlaybackStatus.playing || state.status == VideoPlaybackStatus.buffering;
+    final scrub = _VideoScrub(controller, resumePlayback: previous?.resumePlayback ?? wasPlaying);
+    _scrub = scrub;
+    _seekTimer?.cancel();
+    scrub.ready = _prepareScrub(scrub, previous?.pending, _pendingFrameStep);
+  }
+
+  Future<void> _prepareScrub(_VideoScrub scrub, Future<void>? previous, Future<bool>? frameStep) async {
+    await previous;
+    await frameStep;
+    await _pendingSeek;
+    await stopHoldPlayback();
+    if (!identical(_scrub, scrub)) {
+      return;
+    }
+
+    _bufferingTimer?.cancel();
+    try {
+      await scrub.controller.pause();
+    } catch (error, stack) {
+      _log.warning('Error pausing video for scrubbing', error, stack);
+    }
+  }
+
+  void previewScrub(Duration position) {
+    final scrub = _scrub;
+    if (scrub == null || scrub.finishing || state.position == position) {
+      return;
+    }
+    _queueScrub(scrub, position, exact: false);
+  }
+
+  Future<void> finishScrub(Duration position) async {
+    final scrub = _scrub;
+    if (scrub == null || scrub.finishing) {
+      return;
+    }
+    scrub.finishing = true;
+    _queueScrub(scrub, position, exact: true);
+    if (scrub.previewing) {
+      // Supersede the last approximate request once, when the finger lifts.
+      try {
+        await scrub.controller.cancelPendingPreview();
+      } catch (error, stack) {
+        _log.warning('Error canceling scrub preview', error, stack);
+      }
+    }
+    await scrub.pending;
+  }
+
+  void _queueScrub(_VideoScrub scrub, Duration position, {required bool exact}) {
+    state = state.copyWith(position: position);
+    // Keep only the latest thumb position while the native decoder works.
+    scrub.next = (position: position, exact: exact);
+    scrub.pending ??= _drainScrub(scrub);
+  }
+
+  Future<void> _drainScrub(_VideoScrub scrub) async {
+    try {
+      await scrub.ready;
+      while (identical(_scrub, scrub) && scrub.next != null) {
+        final target = scrub.next!;
+        scrub.next = null;
+        final milliseconds = target.position.inMilliseconds;
+        if (target.exact) {
+          await scrub.controller.seekTo(milliseconds);
+          if (identical(_scrub, scrub) && scrub.resumePlayback) {
+            await scrub.controller.play();
+          }
+        } else {
+          scrub.previewing = true;
+          try {
+            await scrub.controller.seekPreview(milliseconds);
+          } catch (error, stack) {
+            _log.warning('Error previewing scrub position', error, stack);
+          } finally {
+            scrub.previewing = false;
+          }
+        }
+      }
+    } catch (error, stack) {
+      _log.warning('Error settling video after scrubbing', error, stack);
+    } finally {
+      scrub.pending = null;
+      if (identical(_scrub, scrub) && scrub.finishing) {
+        _scrub = null;
+        onNativePositionChanged();
+      }
+    }
+  }
+
   Future<bool> stepFrame({required bool forward}) {
     final controller = _controller;
-    if (controller == null || state.duration == Duration.zero) {
+    final scrub = _scrub;
+    if (controller == null || state.duration == Duration.zero || scrub?.finishing == false) {
       return Future.value(true);
     }
 
-    return _pendingFrameStep = _stepFrame(controller, after: _pendingFrameStep, forward: forward);
+    scrub?.resumePlayback = false;
+    return _pendingFrameStep = _stepFrame(
+      controller,
+      after: _pendingFrameStep,
+      scrub: scrub?.pending,
+      forward: forward,
+    );
   }
 
   Future<bool> _stepFrame(
     NativeVideoPlayerController controller, {
     required Future<bool>? after,
+    required Future<void>? scrub,
     required bool forward,
   }) async {
     await after;
-    if (!mounted || _controller != controller) {
+    await scrub;
+    if (!mounted || _controller != controller || _scrub != null) {
       return true;
     }
 
@@ -179,7 +310,7 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
   }
 
   void seekTo(Duration position) {
-    if (_controller == null || state.position == position) {
+    if (_controller == null || state.position == position || _scrub != null) {
       return;
     }
 
@@ -209,6 +340,9 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
   }
 
   void toggle() {
+    if (_scrub != null) {
+      return;
+    }
     _holdStatus = null;
 
     switch (state.status) {
@@ -288,14 +422,14 @@ class VideoPlayerNotifier extends StateNotifier<VideoPlayerState> {
     }
 
     state = state.copyWith(
-      position: Duration(milliseconds: playbackInfo.position),
+      position: _scrub == null ? Duration(milliseconds: playbackInfo.position) : state.position,
       duration: Duration(milliseconds: videoInfo.duration),
       status: status,
     );
   }
 
   void onNativePositionChanged() {
-    if (!mounted || (_seekTimer?.isActive ?? false)) {
+    if (!mounted || (_seekTimer?.isActive ?? false) || _scrub != null) {
       return;
     }
 

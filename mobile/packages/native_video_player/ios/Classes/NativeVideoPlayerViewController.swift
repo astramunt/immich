@@ -169,14 +169,19 @@ extension NativeVideoPlayerViewController: NativeVideoPlayerApiDelegate {
         player.rate != 0 && player.error == nil
     }
 
-    func seekTo(position: Int64, completion: @escaping () -> Void) {
+    func seekTo(position: Int64, approximate: Bool, completion: @escaping () -> Void) {
+        let tolerance = approximate ? CMTime(value: 250, timescale: 1000) : .zero
         player.seek(
             to: CMTime(value: position, timescale: 1000),
-            toleranceBefore: .zero,
-            toleranceAfter: .zero
+            toleranceBefore: tolerance,
+            toleranceAfter: tolerance
         ) { _ in
             completion()
         }
+    }
+
+    func cancelPendingPreview() {
+        player.currentItem?.cancelPendingSeeks()
     }
 
     func stepFrame(forward: Bool) -> Bool {

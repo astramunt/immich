@@ -6,7 +6,8 @@ protocol NativeVideoPlayerApiDelegate: AnyObject {
     func pause()
     func stop(completion: @escaping () -> Void)
     func isPlaying() -> Bool
-    func seekTo(position: Int64, completion: @escaping () -> Void)
+    func seekTo(position: Int64, approximate: Bool, completion: @escaping () -> Void)
+    func cancelPendingPreview()
     func stepFrame(forward: Bool) -> Bool
     func setPlaybackSpeed(speed: Double)
     func setVolume(volume: Double)
@@ -84,14 +85,21 @@ class NativeVideoPlayerApi {
         case "isPlaying":
             let playing = delegate?.isPlaying()
             result(playing)
-        case "seekTo":
+        case "seekTo", "seekPreview":
             guard let position = call.arguments as? Int64 else {
                 result(invalidArgumentsFlutterError)
                 return
             }
-            delegate?.seekTo(position: position) {
+            guard let delegate else {
+                result(nil)
+                return
+            }
+            delegate.seekTo(position: position, approximate: call.method == "seekPreview") {
                 result(nil)
             }
+        case "cancelPendingPreview":
+            delegate?.cancelPendingPreview()
+            result(nil)
         case "stepFrame":
             guard let forward = call.arguments as? Bool else {
                 result(invalidArgumentsFlutterError)

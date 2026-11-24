@@ -83,12 +83,15 @@ class NativeVideoPlayerApi {
     );
   }
 
-  Future<void> seekTo(int position) async {
+  Future<void> seekTo(int position, {bool approximate = false}) async {
     await _channel.invokeMethod<void>(
-      'seekTo',
+      approximate ? 'seekPreview' : 'seekTo',
       position,
     );
   }
+
+  Future<void> cancelPendingPreview() =>
+      _channel.invokeMethod<void>('cancelPendingPreview');
 
   Future<int?> getPlaybackPosition() async {
     return _channel.invokeMethod<int?>(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:async/async.dart';
@@ -194,6 +195,8 @@ class VideoSeekBar extends ConsumerWidget {
     final progress = ref.watch(_videoProgressProvider(videoPlayerName));
     final notifier = ref.watch(videoPlayerProvider(videoPlayerName).notifier);
     final duration = progress.duration.inMicroseconds.toDouble();
+    final smoothScrub = CurrentPlatform.isIOS && !progress.casting;
+    Duration positionOf(double value) => Duration(microseconds: value.toInt());
     return Slider(
       value: min(progress.position.inMicroseconds.toDouble(), duration),
       max: max(duration, 1),
@@ -201,14 +204,16 @@ class VideoSeekBar extends ConsumerWidget {
       activeColor: Colors.white,
       inactiveColor: whiteOpacity75,
       padding: EdgeInsets.zero,
-      onChangeStart: (_) => notifier.hold(),
-      onChangeEnd: (_) => notifier.release(),
+      onChangeStart: (_) => smoothScrub ? notifier.beginScrub() : notifier.hold(),
+      onChangeEnd: (value) => smoothScrub ? unawaited(notifier.finishScrub(positionOf(value))) : notifier.release(),
       onChanged: duration == 0
           ? null
           : (value) {
-              final position = Duration(microseconds: value.toInt());
+              final position = positionOf(value);
               if (progress.casting) {
                 ref.read(castProvider.notifier).seekTo(position);
+              } else if (smoothScrub) {
+                notifier.previewScrub(position);
               } else {
                 notifier.seekTo(position);
               }

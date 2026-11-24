@@ -165,6 +165,15 @@ class NativeVideoPlayerController with ChangeNotifier {
     }
   }
 
+  /// Quickly previews an approximate position in the iOS player during a drag.
+  Future<void> seekPreview(int milliseconds) {
+    final position = milliseconds.clamp(0, videoInfo?.duration ?? 0);
+    return _api.seekTo(position, approximate: true);
+  }
+
+  /// Cancels an outstanding preview on iOS before settling at the final time.
+  Future<void> cancelPendingPreview() => _api.cancelPendingPreview();
+
   /// Seeks the video forward by the given number of milliseconds.
   Future<void> seekForward(int milliseconds) async {
     final duration = videoInfo?.duration ?? 0;
